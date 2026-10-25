@@ -135,8 +135,7 @@ export function Workspace() {
             </button>
             <button
               onClick={() => setPreferRecorded(false)}
-              disabled={!canRunLive}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium disabled:opacity-40 ${
+              className={`rounded-lg border px-3 py-2 text-sm font-medium ${
                 !preferRecorded
                   ? "border-signal-500/50 bg-signal-500/15 text-signal-300"
                   : "border-ink-700 bg-ink-850 text-haze-200"
