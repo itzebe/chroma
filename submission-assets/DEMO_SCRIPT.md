@@ -63,7 +63,8 @@ panel sit on screen.
 
 ### Scene 2 — What is on screen, and what is honest about it (0:18–0:35)
 
-**Screen:** still the composer, with the **Recorded sample** toggle visible.
+**Screen:** still the composer, with the **Recorded sample** / **Live measurement**
+toggle visible.
 
 **Narration:**
 > "One thing to be upfront about. This build can run the measurement live — the
@@ -72,7 +73,8 @@ panel sit on screen.
 > response the API returned on the 24th of October, and the app labels that as
 > recorded wherever it appears. I will run it live."
 
-**Action:** choose a photo (or paste an image URL) and click **Analyse**.
+**Action:** click **Live measurement** to switch modes, choose a photo (or paste
+an image URL), then click **Measure my skin colours**.
 
 ### Scene 3 — The provenance label (0:35–0:50)
 
