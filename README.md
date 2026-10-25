@@ -9,6 +9,51 @@ on them, and ranks product shades against their own skin.
 
 Built for the **YouCam API Skin AI & eCommerce VTO Hackathon**.
 
+This is a new project, created during the Hackathon Submission Period (which
+opened 2026-09-29). It has no prior history outside this repository and was not
+derived from an earlier codebase.
+
+---
+
+## YouCam APIs used
+
+Two Perfect Corp. YouCam endpoints are integrated, from the Skin and Beauty
+categories:
+
+| Endpoint | Category | Role in the app |
+| --- | --- | --- |
+| `POST /s2s/v2.0/task/skin-tone-analysis` | Skin AI | Measures skin, lip, eye and brow colour from the uploaded photo. This single response is the root input: every number the app displays is derived from it. |
+| `POST /s2s/v2.0/task/makeup-vto` | Beauty / makeup VTO | Composites a computed makeup look onto the user's own photo. |
+
+Both are reached through a shared upload and polling flow
+(`POST /s2s/v2.0/file`, then `GET /s2s/v2.0/task/{id}`). See
+[API notes](#api-notes) for the full sequence and
+[Not wired up](#not-wired-up) for the endpoint that is present in the client but
+deliberately not exposed.
+
+---
+
+## Verified status
+
+What is demonstrably working today, and what is not:
+
+| Capability | Status |
+| --- | --- |
+| Skin tone measurement (live API call) | Verified. A live call succeeded, and its captured response is what the **Recorded sample** button replays. |
+| Skin tone measurement (re-run live) | **Blocked.** The account's API units are exhausted, so the endpoint returns `CreditInsufficiency`. |
+| Seasonal profile, makeup look computation, garment verdict, shade ranking | Verified. Computed at request time from the measurement. |
+| Makeup virtual try-on render | **Implemented and blocked.** The request is built and validated, then rejected on billing. No render can be shown today. |
+
+The **Recorded sample** button replays a real captured response so the whole
+product can be exercised without spending units. It is labelled as recorded
+everywhere it appears, and the label is generated from the response's own
+provenance field rather than being hard-coded prose. When the app runs a real
+call, the same label reads "measured live just now".
+
+The app does not mock the render path. Pressing render with exhausted units shows
+the API's actual `CreditInsufficiency` error, marked as retryable and as having
+charged no units.
+
 ---
 
 ## The one test every feature had to pass
@@ -22,13 +67,19 @@ separates this from a colour-analysis wrapper with an API call bolted on:
 | --- | --- |
 | Measured colours | Skin, lip, eye and brow hex values are read from the photo. Nothing asks the user to self-report their undertone. |
 | Computed looks | The makeup engine accepts arbitrary hex colours, so every look is derived from the measured palette by explicit Lab transformations. Each transformation is printed on screen. |
-| Real render | The makeup VTO endpoint composites those computed colours onto the user's actual photo. |
+| Real render | The makeup VTO endpoint composites those computed colours onto the user's actual photo. Built and validated, but blocked on units today — see Verified status. |
 | Grounded shopping advice | Garment verdicts and shade rankings are perceptual distances from the measured colours, not a static chart. |
 
 The whole product is therefore downstream of one API call. Change the photo and
 every number on the page changes with it.
 
 ## What it does
+
+The problem: colour advice is usually a static chart. You decide you are a
+"winter", buy a foundation, and it is the wrong depth for your actual skin,
+because nothing ever looked at your face. Chroma inverts that. It measures the
+face first, with the YouCam API, and derives every recommendation from those
+measurements.
 
 Five steps, in order:
 
@@ -46,7 +97,22 @@ Five steps, in order:
 5. **Shades** — foundation, lipstick, blush and eye shadow ranked against the
    colour actually measured on the face.
 
+### Who it is for
+
+Someone buying foundation or a lipstick online, where the colour on the screen
+is the only colour they get. Shade charts cannot answer "will this work on
+*me*", because they never saw the face. Chroma answers from the person's own
+measurement, and shows the arithmetic, so the answer can be checked rather than
+trusted. The same measurement also settles the question that costs the most
+money to get wrong: whether a garment colour works before it is bought.
+
+The measurement is a single API call per person, and everything else is local
+arithmetic — so the cost per session is one call, not one call per
+recommendation.
+
 ## Quick start
+
+Requires Node.js 20 or newer (developed on Node 24).
 
 ```bash
 npm install
@@ -57,6 +123,13 @@ npm run dev                  # http://localhost:3000
 Without a key the UI still loads, but analysis and rendering are unavailable.
 The **Recorded sample** button replays a captured live API response, so the
 whole interface can be explored and judged without spending API units.
+
+To check the install is sound without any credentials:
+
+```bash
+npm test        # 97 unit tests, no network access
+npm run verify  # tests, typecheck and production build
+```
 
 ### Environment
 
@@ -144,9 +217,46 @@ Makeup effect payloads are validated before being sent: each pattern has an
 expected palette count which the engine enforces, so a mismatch is caught
 locally instead of costing a failed request.
 
+### Not wired up
+
+`src/lib/youcam.ts` also contains a client for the apparel try-on endpoint
+(`/s2s/v2.0/task/cloth-v4`), but it is not called by any route or component and
+has no tests. It is not part of the submitted experience and nothing in the UI
+depends on it. The "VTO" in this project is the makeup try-on above.
+
 ## Privacy
 
 Photos are sent to the YouCam API for measurement. This app does not store them.
+
+## Submission assets
+
+`submission-assets/` holds the material prepared for judging. It is not needed to
+run the app.
+
+```
+submission-assets/
+  screenshots/         12 screenshots of the running app, plus manifest.json
+  tools/               the scripts that produced them (reproducible)
+  DEMO_SCRIPT.md       narration, scene plan and recording checklist
+```
+
+`screenshots/manifest.json` records, for every image, the scroll position and the
+exact text visible in the viewport when it was taken. It is emitted at capture
+time, so it is evidence that each screenshot shows what its filename claims
+rather than a description written after the fact.
+
+Regenerate with the dev server running:
+
+```bash
+cd submission-assets/tools
+npm init -y && npm install puppeteer-core
+node capture-screenshots.mjs http://localhost:3000 ../screenshots
+python3 inspect-screenshots.py ../screenshots   # flags blank/flat frames
+```
+
+All screenshots are of the recorded-sample workflow, which is why each one shows
+the "recorded response" label. No screenshot shows a successful try-on render,
+because none can be produced while the account's units are exhausted.
 
 ## Disclaimer
 
