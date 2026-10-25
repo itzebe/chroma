@@ -177,8 +177,8 @@ await shot("09-step4-garment-verdict");
 await anchor("^Shades that match your measured colouring");
 await shot("10-step5-shade-ranking");
 
-// 11. Try-on: press render and capture the honest credit-limited state.
-console.log("-> pressing render (credits are exhausted; this is the real result)");
+// 11. Try-on: press render and capture the live composited result.
+console.log("-> pressing render (live units available; this is the real result)");
 await page.evaluate(() => {
   const btn = [...document.querySelectorAll("button")].find((b) =>
     /Render the/i.test((b.textContent ?? "").trim()),
@@ -186,22 +186,29 @@ await page.evaluate(() => {
   if (!btn) throw new Error("render button not found");
   btn.click();
 });
-await new Promise((r) => setTimeout(r, 9000));
-// Anchor on the error itself so the message and its guidance are both in frame.
+// The engine usually returns in ~10-30s; wait for the rendered image rather
+// than a fixed delay so a slow render is not captured mid-flight.
+await page.waitForFunction(
+  () => {
+    const img = [...document.querySelectorAll("img")].find((i) =>
+      /rendered by the YouCam/i.test(i.alt ?? ""),
+    );
+    return Boolean(img && img.naturalWidth > 0);
+  },
+  { timeout: 180_000, polling: 1000 },
+);
 await page.evaluate(() => {
   // Pick the INNERMOST matching node: an outer wrapper also contains the text.
-  const cands = [...document.querySelectorAll("h3, p, div")].filter((e) =>
-    /out of units/i.test((e.textContent ?? "").trim()),
+  const cands = [...document.querySelectorAll("img")].filter((e) =>
+    /rendered by the YouCam/i.test(e.alt ?? ""),
   );
-  const el = cands.sort(
-    (a, b) => (a.textContent ?? "").length - (b.textContent ?? "").length,
-  )[0];
-  if (!el) throw new Error("credit-limit error not found after render");
-  const y = el.getBoundingClientRect().top + window.scrollY - 300;
+  const el = cands[0];
+  if (!el) throw new Error("rendered image not found after render");
+  const y = el.getBoundingClientRect().top + window.scrollY - 200;
   window.scrollTo(0, Math.max(0, y));
 });
 await new Promise((r) => setTimeout(r, 700));
-await shot("11-tryon-credit-limited");
+await shot("11-tryon-live-render");
 
 // 12. Full page, for a complete visual record.
 await page.evaluate(() => window.scrollTo(0, 0));

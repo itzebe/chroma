@@ -490,20 +490,17 @@
     ]
   },
   {
-    "name": "11-tryon-credit-limited",
-    "file": "11-tryon-credit-limited.png",
-    "scrollY": 3473,
+    "name": "11-tryon-live-render",
+    "file": "11-tryon-live-render.png",
+    "scrollY": 3560,
     "docHeight": 6237,
     "visibleText": [
-      "#cc5c40",
       "#cc5c40",
       "signature \"Vermilion\"",
       "lightness -8 L*, chroma x0.70",
       "#fdf9ee",
-      "#fdf9ee",
       "neutral \"Bright ivory\"",
       "lightness +14 L*",
-      "#3e3834",
       "#3e3834",
       "measured brow colour",
       "unchanged",
@@ -529,8 +526,8 @@
       "Render on the photo",
       "This calls the YouCam makeup virtual try-on endpoint, which costs 1 unit per successful render. A failed render is not charged.",
       "Render the Evening look",
-      "The API account is out of units",
-      "Add units to the YouCam account to render looks. Colour analysis and shade matching still work."
+      "Rendered live by the YouCam makeup virtual try-on API. The image URL is temporary.",
+      "Generated for Bright Spring. The three looks differ in depth and intensity so you can compare, rather than being three variations of the same idea."
     ]
   },
   {

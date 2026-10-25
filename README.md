@@ -39,10 +39,11 @@ What is demonstrably working today, and what is not:
 
 | Capability | Status |
 | --- | --- |
-| Skin tone measurement (live API call) | Verified. A live call succeeded, and its captured response is what the **Recorded sample** button replays. |
+| Skin tone measurement (live API call) | Verified. A live call succeeded, and its captured response is what the **Recorded sample** button replays. Costs 20 units; a failed call costs none. |
 | Skin tone measurement (re-run live) | Verified. Runs live against the API, and reports `CreditInsufficiency` honestly if units run out. |
+| Photo upload (`POST /s2s/v2.0/file`) | Verified. An uploaded photo is analysed and its `file_id` is reused for the render, so the bytes are not uploaded twice. Costs no units. |
 | Seasonal profile, makeup look computation, garment verdict, shade ranking | Verified. Computed at request time from the measurement. |
-| Makeup virtual try-on render | Verified. All three computed looks render live; the engine returns a composited image of the user's own photo. |
+| Makeup virtual try-on render | Verified. All three computed looks render live, and the render is rebuilt from the measurement on screen rather than from the fixture, so the composited photo matches the swatches above it. Costs 1 unit; a failed render costs none. |
 
 The **Recorded sample** button replays a real captured response so the whole
 product can be exercised without spending units. It is labelled as recorded
@@ -204,7 +205,10 @@ The CIEDE2000 implementation is checked against the published reference pairs
 from Sharma, Wu & Dalal (2005), the standard conformance set, rather than only
 being self-consistent. Alongside those are regression tests for bugs found
 during development — for example, an eye shadow that resolved to near-white for
-light seasons, and a gamut clamp that quietly shifted a computed colour's depth.
+light seasons, a gamut clamp that quietly shifted a computed colour's depth, a
+render that rebuilt its look from the fixture instead of the measurement on
+screen, and a file upload that read the file id from the wrong level of the
+response envelope.
 
 ## API notes
 
@@ -262,10 +266,12 @@ node capture-screenshots.mjs http://localhost:3000 ../screenshots
 python3 inspect-screenshots.py ../screenshots   # flags blank/flat frames
 ```
 
-The screenshots below are of the recorded-sample workflow, which is why each one
-shows the "recorded response" label. The recorded path is captured here so the
-whole interface can be reviewed without spending API units; live renders of all
-three looks are separately verified.
+The screenshots below are mostly of the recorded-sample workflow, which is why
+each one shows the "recorded response" label. The recorded path is captured there
+so the whole interface can be reviewed without spending API units.
+`11-tryon-live-render.png` is the exception: it is a real live render, and its
+frame includes the caption "Rendered live by the YouCam makeup virtual try-on
+API". Live renders of all three looks are separately verified.
 
 ## Disclaimer
 

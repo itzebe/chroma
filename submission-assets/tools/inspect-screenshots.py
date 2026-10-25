@@ -11,7 +11,7 @@ DIR = sys.argv[1] if len(sys.argv) > 1 else "/workspace/project/submission-asset
 # What each screenshot is supposed to show, keyed by filename prefix.
 EXPECT = {
     "01-landing-composer": ["Chroma", "Choose a photo", "YouCam API"],
-    "02-result-header-recorded-provenance": ["recorded response", "Recorded response, captured"],
+    "02-provenance-recorded-response": ["recorded response", "Recorded response, captured"],
     "03-step1-measured-colours": ["Step 1 — measured", "What the API measured"],
     "04-step2-seasonal-profile": ["Step 2 — interpreted", "seasonal profile"],
     "05-palette": ["Your palette", "Colours that work"],
@@ -20,7 +20,7 @@ EXPECT = {
     "08-step3-evening-look": ["Step 3 — generated"],
     "09-step4-garment-verdict": ["Step 4 — shopping", "work on you"],
     "10-step5-shade-ranking": ["Step 5 — shades", "match your measured colouring"],
-    "11-tryon-credit-limited": ["Step 3 — generated", "out of units"],
+    "11-tryon-live-render": ["Step 3 — generated", "Rendered live by the YouCam"],
     "12-full-page": ["Chroma"],
 }
 
