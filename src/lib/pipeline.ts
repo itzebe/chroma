@@ -112,6 +112,20 @@ function failureFromYouCam(err: YouCamError): PipelineFailure {
       unitsSpent: false,
     };
   }
+  if (err.code === "InvalidApiKey" || err.status === 401 || err.status === 403) {
+    return {
+      ok: false,
+      source: "live",
+      code: err.code,
+      title: "The YouCam API rejected the server's API key",
+      message:
+        "The API key the server sent was not accepted, so no measurement was run and nothing was charged.",
+      guidance:
+        "Verify YOUCAM_API_KEY on the server holds a current key for this YouCam environment (see .env.example), then restart. Changing the photo will not fix a rejected key. The recorded sample works without a key.",
+      retryable: false,
+      unitsSpent: false,
+    };
+  }
   return {
     ok: false,
     source: "live",

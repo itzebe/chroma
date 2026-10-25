@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PipelineResult } from "@/lib/pipeline";
+import { readApiResult, networkFailure } from "@/lib/api-response";
+import { fileSizeError, MAX_UPLOAD_MB } from "@/lib/upload-limit";
 import { Panel, SectionHeading, Badge, Callout } from "./ui";
 import { MeasuredColours, SeasonProfile, PaletteAndSignals } from "./profile";
 import { LookGallery } from "./looks";
@@ -17,6 +19,7 @@ export function Workspace() {
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [preferRecorded, setPreferRecorded] = useState(true);
@@ -37,6 +40,15 @@ export function Workspace() {
   }, [previewUrl]);
 
   const run = useCallback(async () => {
+    // Re-check here as well as on selection, so a stale state cannot submit an
+    // oversized file. The server guard is still the authority.
+    if (!preferRecorded && file) {
+      const tooBig = fileSizeError(file.size);
+      if (tooBig) {
+        setFileError(tooBig);
+        return;
+      }
+    }
     setBusy(true);
     try {
       let res: Response;
@@ -63,22 +75,13 @@ export function Workspace() {
           body: JSON.stringify({ preferRecorded: true }),
         });
       }
-      const data: PipelineResult = await res.json();
+      const data = await readApiResult<PipelineResult>(res);
       setResult(data);
       requestAnimationFrame(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     } catch {
-      setResult({
-        ok: false,
-        source: "live",
-        code: "NetworkError",
-        title: "Could not reach the analysis endpoint",
-        message: "The request to the server failed.",
-        guidance: "Check that the server is running, then try again.",
-        retryable: true,
-        unitsSpent: false,
-      });
+      setResult(networkFailure("analysis"));
     } finally {
       setBusy(false);
     }
@@ -124,7 +127,10 @@ export function Workspace() {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setPreferRecorded(true)}
+              onClick={() => {
+                setPreferRecorded(true);
+                setFileError(null);
+              }}
               className={`rounded-lg border px-3 py-2 text-sm font-medium ${
                 preferRecorded
                   ? "border-signal-500/50 bg-signal-500/15 text-signal-300"
@@ -162,12 +168,24 @@ export function Workspace() {
                   accept="image/jpeg,image/png"
                   onChange={(e) => {
                     const f = e.target.files?.[0] ?? null;
-                    setFile(f);
+                    const tooBig = f ? fileSizeError(f.size) : null;
+                    setFileError(tooBig);
+                    setFile(tooBig ? null : f);
                     if (previewUrl) URL.revokeObjectURL(previewUrl);
-                    setPreviewUrl(f ? URL.createObjectURL(f) : null);
+                    setPreviewUrl(f && !tooBig ? URL.createObjectURL(f) : null);
                   }}
                   className="mt-1 block w-full rounded-lg border border-ink-600 bg-ink-850 px-3 py-2 text-sm text-haze-200 file:mr-3 file:rounded file:border-0 file:bg-ink-700 file:px-3 file:py-1.5 file:text-haze-100"
                 />
+                <p className="mt-1 text-xs leading-relaxed text-haze-400">
+                  JPEG or PNG, up to {MAX_UPLOAD_MB} MB. Most phone photos need compressing first.
+                </p>
+                {fileError ? (
+                  <div className="mt-2">
+                    <Callout tone="warn" title="That image is too large">
+                      {fileError}
+                    </Callout>
+                  </div>
+                ) : null}
               </div>
               <div>
                 <label htmlFor="url" className="text-sm font-medium text-haze-100">
@@ -180,6 +198,7 @@ export function Workspace() {
                   onChange={(e) => {
                     setImageUrl(e.target.value);
                     setFile(null);
+                    setFileError(null);
                     if (previewUrl) URL.revokeObjectURL(previewUrl);
                     setPreviewUrl(null);
                   }}

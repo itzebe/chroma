@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Look } from "@/lib/looks";
 import type { ColorProfile } from "@/lib/season";
 import type { DataSource, PipelineSuccess } from "@/lib/pipeline";
+import { readApiResult, networkFailure } from "@/lib/api-response";
 import { Panel, SectionHeading, Swatch, Badge, Callout } from "./ui";
 
 interface RenderState {
@@ -52,19 +53,19 @@ export function LookGallery({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lookId: id, imageUrl, measured, quality, source, sourceRef }),
       });
-      const data = await res.json();
+      const data = await readApiResult<{ ok: true; imageUrl: string }>(res);
       if (data.ok) {
         setRenders((r) => ({ ...r, [id]: { status: "done", imageUrl: data.imageUrl } }));
       } else {
         setRenders((r) => ({
           ...r,
-          [id]: { status: "error", message: data.title ?? "Render failed", guidance: data.guidance },
+          [id]: { status: "error", message: data.title, guidance: data.guidance },
         }));
       }
     } catch {
       setRenders((r) => ({
         ...r,
-        [id]: { status: "error", message: "Could not reach the render endpoint" },
+        [id]: { status: "error", message: networkFailure("render").title },
       }));
     }
   }

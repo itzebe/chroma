@@ -128,7 +128,7 @@ whole interface can be explored and judged without spending API units.
 To check the install is sound without any credentials:
 
 ```bash
-npm test        # 100 unit tests, no network access
+npm test        # 129 unit tests, no network access
 npm run verify  # tests, typecheck and production build
 ```
 
@@ -141,6 +141,14 @@ npm run verify  # tests, typecheck and production build
 
 The key is read from the environment at call time. It is never logged, never
 included in a response, and never written to a file in this repository.
+
+### Upload size
+
+Uploads are capped at **4 MB**, checked in the browser and again in the route
+handler. The cap is set below Vercel's 4.5 MB platform request-body limit: a
+larger body is rejected at the edge, before the function runs, and the user sees
+a platform error instead of the app's own message. Most phone photos exceed
+4 MB, so the interface says so up front and points at compressing the photo.
 
 ## Commands
 
@@ -162,6 +170,8 @@ src/lib/looks.ts      profile -> computed makeup looks + VTO payloads
 src/lib/garment.ts    garment colour -> verdict against the palette
 src/lib/products.ts   shade library and scoring
 src/lib/pipeline.ts   orchestration, evidence labelling, preflight checks
+src/lib/upload-limit.ts  the 4 MB upload cap, shared by browser and route
+src/lib/api-response.ts  fetch response -> result, without mislabelling errors
 src/lib/demo.ts       the recorded live response used by the sample button
 src/app/api/analyze   POST: selfie -> measurement, profile, looks
 src/app/api/render    POST: computed look -> YouCam makeup VTO render

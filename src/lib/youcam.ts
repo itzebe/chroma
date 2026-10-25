@@ -14,6 +14,8 @@
  *  - `src_file_id` (uploaded) and `src_file_url` (public) are interchangeable.
  */
 
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./upload-limit.ts";
+
 export type TaskPath =
   | "/s2s/v2.0/task/skin-tone-analysis"
   | "/s2s/v2.0/task/makeup-vto"
@@ -200,7 +202,7 @@ const ENGINE_ERRORS: Record<string, EngineFailure> = {
   exceed_max_filesize: {
     code: "exceed_max_filesize",
     message: "The file is larger than the API accepts.",
-    guidance: "Use an image under 10 MB.",
+    guidance: `Use an image under ${MAX_UPLOAD_MB} MB.`,
   },
   error_multiple_people: {
     code: "error_multiple_people",
@@ -256,7 +258,6 @@ interface FileCreateResponse {
   };
 }
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
 /**
@@ -278,7 +279,7 @@ export async function uploadImage(
     throw new YouCamError("The uploaded file is empty.", { code: "EmptyFile", status: 400 });
   }
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
-    throw new YouCamError("The image is larger than the 10 MB limit.", {
+    throw new YouCamError(`The image is larger than the ${MAX_UPLOAD_MB} MB limit.`, {
       code: "FileTooLarge",
       status: 400,
     });

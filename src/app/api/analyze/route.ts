@@ -1,8 +1,26 @@
 import { NextResponse } from "next/server";
 import { analyze } from "@/lib/pipeline";
 import { isConfigured } from "@/lib/youcam";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, fileSizeError } from "@/lib/upload-limit";
 
 export const maxDuration = 120;
+
+/** The response for a request whose body is too large, from either guard. */
+function tooLargeResponse(bytes: number) {
+  return NextResponse.json(
+    {
+      ok: false,
+      code: "FileTooLarge",
+      title: "That image is too large",
+      message: fileSizeError(bytes) ?? `That image is over the ${MAX_UPLOAD_MB} MB limit.`,
+      guidance: "Choose a smaller photo, or compress this one and try again.",
+      retryable: false,
+      unitsSpent: false,
+      source: "live",
+    },
+    { status: 413 },
+  );
+}
 
 /**
  * Analyse a selfie.
@@ -30,11 +48,8 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      if (file.size > 10 * 1024 * 1024) {
-        return NextResponse.json(
-          { ok: false, code: "FileTooLarge", title: "That image is too large", message: `The file is ${(file.size / 1024 / 1024).toFixed(1)} MB.`, guidance: "Use an image under 10 MB.", retryable: false, unitsSpent: false, source: "live" },
-          { status: 413 },
-        );
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return tooLargeResponse(file.size);
       }
 
       const bytes = new Uint8Array(await file.arrayBuffer());

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyze, resultFromMeasurement, type DataSource, type PipelineSuccess } from "@/lib/pipeline";
-import { applyMakeup, isConfigured, type MakeupEffect, type TaskSource } from "@/lib/youcam";
+import { applyMakeup, isConfigured, YouCamError, type MakeupEffect, type TaskSource } from "@/lib/youcam";
 import { getRecordedSample } from "@/lib/demo";
 
 export const maxDuration = 120;
@@ -122,19 +122,32 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";
     const isCredits = /credit/i.test(message);
+    const isAuth =
+      err instanceof YouCamError
+        ? err.code === "InvalidApiKey" || err.status === 401 || err.status === 403
+        : false;
+    const code = isCredits ? "CreditInsufficiency" : isAuth ? "InvalidApiKey" : "RenderFailed";
+    const title = isCredits
+      ? "The API account is out of units"
+      : isAuth
+        ? "The YouCam API rejected the server's API key"
+        : "The look could not be rendered";
+    const guidance = isCredits
+      ? "Add units to the YouCam account to render looks. Colour analysis and shade matching still work."
+      : isAuth
+        ? "Verify YOUCAM_API_KEY on the server holds a current key for this YouCam environment, then restart. A different photo will not fix a rejected key."
+        : "Try again with a front-facing photo.";
     return NextResponse.json(
       {
         ok: false,
-        code: isCredits ? "CreditInsufficiency" : "RenderFailed",
-        title: isCredits ? "The API account is out of units" : "The look could not be rendered",
+        code,
+        title,
         message,
-        guidance: isCredits
-          ? "Add units to the YouCam account to render looks. Colour analysis and shade matching still work."
-          : "Try again with a front-facing photo.",
-        retryable: true,
+        guidance,
+        retryable: !isAuth,
         unitsSpent: false,
       },
-      { status: 502 },
+      { status: isAuth ? 401 : 502 },
     );
   }
 }
