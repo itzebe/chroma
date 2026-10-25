@@ -209,13 +209,17 @@ recorded-sample path exists only as a fallback for when units run out, and it is
 labelled as recorded on screen from the response's own provenance field.
 
 **"How much does a session cost?"**
-One unit per render; the skin tone analysis is the measurement. Everything
-downstream of the measurement is local arithmetic, so the cost is per render, not
-per recommendation.
+A skin tone analysis costs 20 units; each render costs 1 unit. Errors cost
+nothing — the API docs state that no units are consumed on a query or engine
+error, and that matched what we measured. Everything downstream of the
+measurement is local arithmetic, so the cost is per render, not per
+recommendation.
 
 **"What would you do with more credits?"**
-Nothing structural. The live path is the same code with `preferRecorded: false`,
-and the render is already live.
+Nothing structural. The live path is the same code with `preferRecorded: false`.
+The render is already live, and it now rebuilds the look from the measurement on
+screen rather than from the fixture, so the composited photo always matches the
+swatches above it.
 
 ---
 

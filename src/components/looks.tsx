@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Look } from "@/lib/looks";
 import type { ColorProfile } from "@/lib/season";
+import type { DataSource, PipelineSuccess } from "@/lib/pipeline";
 import { Panel, SectionHeading, Swatch, Badge, Callout } from "./ui";
 
 interface RenderState {
@@ -24,11 +25,19 @@ export function LookGallery({
   looks,
   profile,
   imageUrl,
+  measured,
+  quality,
+  source,
+  sourceRef,
   apiConfigured,
 }: {
   looks: Look[];
   profile: ColorProfile;
   imageUrl?: string;
+  measured?: PipelineSuccess["measured"];
+  quality?: PipelineSuccess["quality"];
+  source?: DataSource;
+  sourceRef?: PipelineSuccess["sourceRef"];
   apiConfigured: boolean;
 }) {
   const [active, setActive] = useState(0);
@@ -41,7 +50,7 @@ export function LookGallery({
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lookId: id, imageUrl }),
+        body: JSON.stringify({ lookId: id, imageUrl, measured, quality, source, sourceRef }),
       });
       const data = await res.json();
       if (data.ok) {

@@ -303,6 +303,10 @@ export function Workspace() {
               looks={result.looks}
               profile={result.profile}
               imageUrl={liveImageUrl}
+              measured={result.measured}
+              quality={result.quality}
+              source={result.source}
+              sourceRef={result.sourceRef}
               apiConfigured={Boolean(health?.apiConfigured)}
             />
             <GarmentChecker profile={result.profile} />

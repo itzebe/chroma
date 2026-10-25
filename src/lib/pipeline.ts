@@ -39,6 +39,12 @@ export interface PipelineSuccess {
   };
   profile: ColorProfile;
   looks: Look[];
+  /**
+   * The input the measurement came from. A render reuses this so the composited
+   * image is the same photo that was measured - reusing the uploaded file id
+   * rather than re-uploading, and never substituting another person's photo.
+   */
+  sourceRef: { fileId?: string; fileUrl?: string };
   /** Ready-to-send makeup payloads, one per look. */
   makeupRequests: Array<{ lookId: string; lookName: string; body: ReturnType<typeof toMakeupRequest> }>;
   /** Structural problems found before sending anything to the engine. */
@@ -125,6 +131,7 @@ export function buildResult(
   source: DataSource,
   provenance: string,
   outcome: SkinToneOutcome,
+  sourceRef: { fileId?: string; fileUrl?: string } = {},
 ): PipelineResult {
   const colors = outcome.results?.color ?? {};
   const quality = outcome.results?.face_quality ?? {};
@@ -197,6 +204,7 @@ export function buildResult(
     },
     profile,
     looks,
+    sourceRef,
     makeupRequests,
     preflight,
     warnings,
@@ -210,6 +218,47 @@ export function recordedResult(sampleId?: string): PipelineResult {
     "recorded",
     `Recorded response, captured ${sample.capturedAt} from ${sample.endpoint}. This is real API output that is replayed, not a new measurement.`,
     { ok: true, results: sample.response.results },
+  );
+}
+
+/**
+ * Rebuild a result from a measurement the browser already holds.
+ *
+ * The render route uses this so the composited look matches the colours on
+ * screen. Without it the route had no measurement to work from and fell back to
+ * the recorded sample, so a user measured as, say, True Autumn would see a look
+ * computed for the fixture's Bright Spring. Classification is deterministic, so
+ * rebuilding from the same colours yields exactly the looks the user is looking
+ * at.
+ *
+ * `source` is carried through rather than assumed: a rebuild of recorded colours
+ * stays labelled recorded.
+ */
+export function resultFromMeasurement(
+  measured: PipelineSuccess["measured"],
+  quality: PipelineSuccess["quality"] = {},
+  source: DataSource = "live",
+  sourceRef: { fileId?: string; fileUrl?: string } = {},
+): PipelineResult {
+  return buildResult(
+    source,
+    source === "live"
+      ? "Rebuilt from the live measurement shown in the browser."
+      : "Rebuilt from the recorded measurement shown in the browser.",
+    {
+      ok: true,
+      results: {
+        color: { ...measured },
+        face_quality: {
+          has_face: quality.has_face,
+          area: quality.area ?? undefined,
+          frontal: quality.frontal ?? undefined,
+          lighting: quality.lighting ?? undefined,
+          faceangle: quality.faceangle ?? undefined,
+        },
+      },
+    },
+    sourceRef,
   );
 }
 
@@ -270,7 +319,12 @@ export async function analyze(opts: AnalyzeOptions = {}): Promise<PipelineResult
       };
     }
 
-    return buildResult("live", "Measured just now by the YouCam skin tone analysis API.", outcome);
+    return buildResult(
+      "live",
+      "Measured just now by the YouCam skin tone analysis API.",
+      outcome,
+      source,
+    );
   } catch (err) {
     if (err instanceof YouCamError) return failureFromYouCam(err);
     return {
