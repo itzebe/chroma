@@ -247,7 +247,7 @@ run the app.
 
 ```
 submission-assets/
-  screenshots/         12 screenshots of the running app, plus manifest.json
+  screenshots/         13 screenshots of the running app, plus manifest.json
   tools/               the scripts that produced them (reproducible)
   DEMO_SCRIPT.md       narration, scene plan and recording checklist
 ```
@@ -261,17 +261,34 @@ Regenerate with the dev server running:
 
 ```bash
 cd submission-assets/tools
-npm init -y && npm install puppeteer-core
-node capture-screenshots.mjs http://localhost:3000 ../screenshots
+npm install                                   # puppeteer-core, per package.json
+node capture-screenshots.mjs http://localhost:3000 ../screenshots /path/to/face.jpg
 python3 inspect-screenshots.py ../screenshots   # flags blank/flat frames
 ```
 
-The screenshots below are mostly of the recorded-sample workflow, which is why
-each one shows the "recorded response" label. The recorded path is captured there
-so the whole interface can be reviewed without spending API units.
-`11-tryon-live-render.png` is the exception: it is a real live render, and its
-frame includes the caption "Rendered live by the YouCam makeup virtual try-on
-API". Live renders of all three looks are separately verified.
+The third argument is the photo for the live shots. Omit it to capture only the
+recorded-sample set without spending units. The live path costs 20 units for the
+analysis and 1 for the render.
+
+`verify-live-path.mjs` is the companion check: it drives the live path through
+the real UI and asserts the controls are reachable and the result is labelled as
+a live measurement, which a unit test cannot see. It costs 20 units.
+
+```bash
+node verify-live-path.mjs http://localhost:3000 /path/to/face.jpg
+```
+
+The first ten screenshots are of the recorded-sample workflow, which is why they
+show the "recorded response" label. The recorded path is captured there so the
+whole interface can be reviewed without spending API units.
+
+The last three are the live path. `11-live-measurement.png` is a real skin tone
+analysis, and its frame carries the "measured live just now" label and the
+measured hex values straight from that call. `12-live-render.png` is a real
+makeup render of the same photo: its computed look is named "Rust", which is the
+True Autumn signature the live measurement produced, not the "Vermilion" of the
+recorded Bright Spring sample - visible evidence that the render follows the
+measurement rather than a fixture. `13-full-page.png` records the whole page.
 
 ## Disclaimer
 

@@ -4,13 +4,20 @@
  * each frame. The manifest is the evidence that a screenshot shows what its
  * filename claims - it is generated at capture time, not written by hand.
  *
- * Usage: node capture.mjs <baseUrl> <outDir>
+ * The last two shots run the LIVE path: a real skin tone analysis (20 units)
+ * and a real makeup render (1 unit). Pass a face photo as the third argument.
+ * If it is missing, those two shots are skipped and the rest still run, so the
+ * recorded-sample set can be produced without units.
+ *
+ * Usage: node capture.mjs <baseUrl> <outDir> [facePhoto]
  */
 import puppeteer from "puppeteer-core";
 import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const OUT = process.argv[3] ?? "/workspace/project/submission-assets/screenshots";
+const PHOTO = process.argv[4] ?? "/tmp/src.jpg";
 const CHROME = "/usr/bin/chromium";
 
 await mkdir(OUT, { recursive: true });
@@ -177,43 +184,84 @@ await shot("09-step4-garment-verdict");
 await anchor("^Shades that match your measured colouring");
 await shot("10-step5-shade-ranking");
 
-// 11. Try-on: press render and capture the live composited result.
-console.log("-> pressing render (live units available; this is the real result)");
-await page.evaluate(() => {
-  const btn = [...document.querySelectorAll("button")].find((b) =>
-    /Render the/i.test((b.textContent ?? "").trim()),
+// 11. The live path. The recorded sample above is a fallback; this is the
+// product. Runs a real skin tone analysis (20 units) and a real render (1 unit).
+if (existsSync(PHOTO)) {
+  console.log(`-> running the LIVE path with ${PHOTO}`);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await new Promise((r) => setTimeout(r, 300));
+
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll("button")].find((b) =>
+      /^Live measurement$/i.test((b.textContent ?? "").trim()),
+    );
+    if (!btn) throw new Error("live measurement button not found");
+    btn.click();
+  });
+  const photoInput = await page.waitForSelector("input#photo", { timeout: 15_000 });
+  await photoInput.uploadFile(PHOTO);
+  await new Promise((r) => setTimeout(r, 400));
+
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll("button")].find((b) =>
+      /^Measure my skin colours$/i.test((b.textContent ?? "").trim()),
+    );
+    if (!btn || btn.disabled) throw new Error("live submit not available");
+    btn.click();
+  });
+  // Wait for the live provenance label, which only appears after a real call.
+  await page.waitForFunction(() => /measured live just now/i.test(document.body.innerText), {
+    timeout: 240_000,
+    polling: 1000,
+  });
+  await new Promise((r) => setTimeout(r, 1200));
+
+  // 11. Live measurement: the result header carrying the live provenance label.
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll("*")].find((e) =>
+      e.children.length === 0 && /measured live just now/i.test(e.textContent ?? ""),
+    );
+    const y = el ? el.getBoundingClientRect().top + window.scrollY - 140 : 0;
+    window.scrollTo(0, Math.max(0, y));
+  });
+  await new Promise((r) => setTimeout(r, 500));
+  await shot("11-live-measurement");
+
+  // 12. Live render: press render and capture the real composited result.
+  console.log("-> pressing render on the live measurement (1 unit)");
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll("button")].find((b) =>
+      /Render the/i.test((b.textContent ?? "").trim()),
+    );
+    if (!btn) throw new Error("render button not found");
+    btn.click();
+  });
+  await page.waitForFunction(
+    () => {
+      const img = [...document.querySelectorAll("img")].find((i) =>
+        /rendered by the YouCam/i.test(i.alt ?? ""),
+      );
+      return Boolean(img && img.naturalWidth > 0);
+    },
+    { timeout: 180_000, polling: 1000 },
   );
-  if (!btn) throw new Error("render button not found");
-  btn.click();
-});
-// The engine usually returns in ~10-30s; wait for the rendered image rather
-// than a fixed delay so a slow render is not captured mid-flight.
-await page.waitForFunction(
-  () => {
-    const img = [...document.querySelectorAll("img")].find((i) =>
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll("img")].find((i) =>
       /rendered by the YouCam/i.test(i.alt ?? ""),
     );
-    return Boolean(img && img.naturalWidth > 0);
-  },
-  { timeout: 180_000, polling: 1000 },
-);
-await page.evaluate(() => {
-  // Pick the INNERMOST matching node: an outer wrapper also contains the text.
-  const cands = [...document.querySelectorAll("img")].filter((e) =>
-    /rendered by the YouCam/i.test(e.alt ?? ""),
-  );
-  const el = cands[0];
-  if (!el) throw new Error("rendered image not found after render");
-  const y = el.getBoundingClientRect().top + window.scrollY - 200;
-  window.scrollTo(0, Math.max(0, y));
-});
-await new Promise((r) => setTimeout(r, 700));
-await shot("11-tryon-live-render");
+    const y = el.getBoundingClientRect().top + window.scrollY - 200;
+    window.scrollTo(0, Math.max(0, y));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  await shot("12-live-render");
+} else {
+  console.log(`-> skipping the live shots: no photo at ${PHOTO}`);
+}
 
-// 12. Full page, for a complete visual record.
+// 13. Full page, for a complete visual record.
 await page.evaluate(() => window.scrollTo(0, 0));
 await new Promise((r) => setTimeout(r, 500));
-await shot("12-full-page", { full: true });
+await shot("13-full-page", { full: true });
 
 await writeFile(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2));
 console.log(`\nwrote ${OUT}/manifest.json with ${manifest.length} entries`);

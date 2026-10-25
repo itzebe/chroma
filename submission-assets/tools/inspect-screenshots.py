@@ -20,8 +20,9 @@ EXPECT = {
     "08-step3-evening-look": ["Step 3 — generated"],
     "09-step4-garment-verdict": ["Step 4 — shopping", "work on you"],
     "10-step5-shade-ranking": ["Step 5 — shades", "match your measured colouring"],
-    "11-tryon-live-render": ["Step 3 — generated", "Rendered live by the YouCam"],
-    "12-full-page": ["Chroma"],
+    "11-live-measurement": ["measured live just now", "Step 1 — measured"],
+    "12-live-render": ["Rendered live by the YouCam"],
+    "13-full-page": ["Chroma"],
 }
 
 def stats(path):
