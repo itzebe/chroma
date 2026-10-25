@@ -20,6 +20,7 @@ import {
   PATTERNS,
   verifiedPattern,
   LIP_SHAPES,
+  requiredPaletteFields,
 } from "../src/lib/looks.ts";
 import { hexToLab, normalizeHex, deltaEHex } from "../src/lib/color.ts";
 
@@ -360,4 +361,48 @@ test("no two eye shadow layers share the same colour", () => {
       assert.equal(new Set(hexes).size, hexes.length, `${name}/${look.id}: duplicate shadow colours ${hexes.join(", ")}`);
     }
   }
+});
+
+test("every palette carries the fields its texture requires", () => {
+  // The live engine rejected the signature look with exactly these omissions
+  // (2026-10-25): "effects.blush.palettes[0].glowStrength is required;
+  // effects.eye_shadow.palettes[0].shimmerColor is required; ...". The published
+  // schema calls them optional, so only the API reveals the requirement.
+  for (const [name, profile] of Object.entries(PROFILES)) {
+    for (const look of buildLooks(profile)) {
+      for (const effect of look.effects) {
+        for (const [i, pal] of ((effect.payload.palettes as Record<string, unknown>[]) ?? []).entries()) {
+          for (const field of requiredPaletteFields(effect.category, pal.texture as string)) {
+            assert.ok(
+              pal[field] !== undefined,
+              `${name}/${look.id}/${effect.category}[${i}] texture=${String(pal.texture)} needs ${field}`,
+            );
+          }
+        }
+      }
+    }
+  }
+});
+
+test("a satin eye texture is corrected to one the engine accepts", () => {
+  // `satin` is legal for lips and blush but not for eye shadow, whose enum is
+  // matte|shimmer|metallic. Seasons with a `light` dominant request satin eyes.
+  const satinEye = classify({
+    colors: { skin_color: "#f2d5cf", lip_color: "#d98a9e", eye_color: "#7a9bb5", eyebrow_color: "#8a7a72" },
+    quality: {},
+  });
+  assert.equal(texturePolicy(satinEye).eye, "satin", "fixture should still request satin eyes");
+  const shadow = buildLooks(satinEye)[1].effects.find((e) => e.category === "eye_shadow")!;
+  const textures = (shadow.payload.palettes as { texture: string }[]).map((p) => p.texture);
+  assert.ok(
+    textures.every((t) => ["matte", "shimmer", "metallic"].includes(t)),
+    `eye shadow textures must be legal, got ${textures.join(", ")}`,
+  );
+});
+
+test("validateLook rejects a texture the category does not allow", () => {
+  const look = structuredClone(buildLooks(PROFILES.live)[1]);
+  const shadow = look.effects.find((e) => e.category === "eye_shadow")!;
+  (shadow.payload.palettes as { texture: string }[])[0].texture = "satin";
+  assert.ok(validateLook(look).some((p) => /not one of/.test(p)));
 });

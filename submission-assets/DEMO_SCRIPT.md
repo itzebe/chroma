@@ -2,29 +2,29 @@
 
 Target length **2 minutes 40 seconds** (the limit is 3 minutes; judges are not
 required to watch beyond it). Every claim below is one the app actually makes
-about itself, and every number comes from the recorded sample.
+about itself, and every number comes from a live run or the recorded sample.
 
 ## The honesty rule for this video
 
 Read this before recording.
 
-- **The measurement is a recorded sample, not a live call.** The API credits for
-  this account are exhausted, so the skin tone analysis cannot be re-run. The
-  sample is a real response captured from the live endpoint on 2026-10-24 and the
-  app labels it "recorded response" on screen. Say that out loud in the video. Do
-  not say "this is analysing my photo right now".
-- **The try-on render cannot be shown.** Every render attempt returns
-  `CreditInsufficiency`. Show the real error and its guidance, and say plainly
-  that the render path is implemented and unit-tested but blocked on credits. Do
-  not show a mock image and imply the API produced it.
+- **The measurement runs live, and the render runs live.** The account has API
+  units, so both the skin tone analysis and the makeup try-on can be performed
+  for real while recording. If units run out mid-record the app reports the
+  `CreditInsufficiency` error honestly and charges nothing, and the
+  **Recorded sample** button replays a captured response instead.
+- **The try-on render is real.** Pressing render sends the computed look to the
+  makeup VTO endpoint and shows the composited image of the same photo. One unit
+  per successful render. Show the returned image; do not substitute a mock.
 - **Everything else is computed live, from the measurement, in the browser.**
   The seasonal profile, the makeup colours, the garment verdict and the shade
-  ranking are all recalculated on the spot. That is the honest strong claim: the
-  *measurement* is replayed, the *reasoning* is live.
+  ranking are all recalculated on the spot.
 
-If you would rather not explain the credit limit on camera, the alternative is to
-re-record the whole video later with live credits. The script below is written for
-the recorded-sample version, because that is what is demonstrable today.
+The strongest version of the video is the fully live one: measure a real photo,
+then render a real look, and point out that the colours being composited were
+computed from the measurement rather than picked from a preset list. The script
+below does that, and falls back to the **Recorded sample** path only if units are
+exhausted.
 
 ---
 
@@ -63,32 +63,27 @@ panel sit on screen.
 
 ### Scene 2 — What is on screen, and what is honest about it (0:18–0:35)
 
-**Screen:** still the composer, with the **Recorded sample** toggle highlighted.
+**Screen:** still the composer, with the **Recorded sample** toggle visible.
 
 **Narration:**
-> "Two things to be upfront about. This build uses the recorded-sample path: the
-> skin tone measurement you are about to see is a real response the API returned,
-> captured on the 24th of October, replayed here. It is not a new call, and the
-> app labels it as recorded everywhere it appears.
->
-> The reason is practical — the account's API credits are exhausted. But notice
-> what that does and does not limit. The measurement is replayed. Every
-> recommendation built on top of it is computed live, right here."
+> "One thing to be upfront about. This build can run the measurement live — the
+> photo goes to the YouCam skin tone analysis endpoint and comes back with four
+> measured colours. There is also a recorded-sample path, which replays a real
+> response the API returned on the 24th of October, and the app labels that as
+> recorded wherever it appears. I will run it live."
 
-**Action:** click **Load the recorded analysis**.
+**Action:** choose a photo (or paste an image URL) and click **Analyse**.
 
 ### Scene 3 — The provenance label (0:35–0:50)
 
-**Screen:** the result header. The **recorded response** badge and the provenance
-sentence are the subject.
+**Screen:** the result header. The provenance sentence is the subject.
 
 **Narration:**
-> "This is the label that matters. 'Recorded response, captured 2026-10-24 from
-> the skin tone analysis endpoint. This is real API output that is replayed, not
-> a new measurement.' That sentence is generated from the response's own
-> provenance field, so it cannot drift out of sync with what actually happened.
->
-> If this had been a live call it would read 'measured live just now' instead."
+> "This is the label that matters. 'Measured just now from the skin tone analysis
+> endpoint.' That sentence is generated from the response's own provenance field,
+> so it cannot drift out of sync with what actually happened — if this had been
+> the recorded sample it would say 'recorded response, captured 2026-10-24'
+> instead, and name the endpoint it came from."
 
 **Action:** scroll so the badge and the sentence are both comfortably in frame.
 
@@ -151,24 +146,27 @@ measurements**. Click **Signature**, pause, then **Evening**. Point at the
 
 ### Scene 7 — The try-on path, honestly (2:00–2:22)
 
-**Screen:** the render button, then the credit error.
+**Screen:** the render button, then the rendered result.
 
 **Narration:**
-> "This is where it would call the makeup try-on endpoint — one unit per
-> successful render. Let me press it and show you exactly what comes back, rather
-> than cutting away.
+> "This is the makeup try-on endpoint — one unit per successful render. Let me
+> press it for real.
 >
-> Credit insufficiency. The request was built correctly and rejected on billing,
-> so the app reports it as retryable, says plainly that no units were charged, and
-> tells you the colour analysis and shade matching still work. I would rather show
-> you this than a fake render.
+> That is the composited image: the same photo, with the look the app computed
+> from your measured colours. Nothing was picked from a preset list — the colours
+> came out of the analysis, and the engine put them on the face.
 >
-> The render path itself is real: it builds the payload you can inspect under
-> 'The exact request sent to the makeup engine', and validates each effect against
-> the palette count the engine enforces before spending a request."
+> The request itself is inspectable under 'The exact request sent to the makeup
+> engine'. Each effect is validated against the pattern and texture rules the
+> engine enforces before a request is spent, so a malformed payload is caught
+> locally rather than costing a unit."
 
-**Action:** click **Render the Evening look**. Wait for the error. Let it sit.
+**Action:** click **Render the Evening look**. Wait for the image. Let it sit.
 Then open **The exact request sent to the makeup engine**.
+
+> If units are exhausted instead, the app shows the API's real
+> `CreditInsufficiency` error, marked retryable and as having charged no units.
+> Show that error and say so plainly rather than cutting away.
 
 ### Scene 8 — Shopping, grounded in the measurement (2:22–2:40)
 
@@ -197,28 +195,27 @@ measured colouring** and point at the caution line on the third shade.
 **Screen:** static. Title **Chroma**, subtitle *Skin intelligence and virtual
 try-on, built on the YouCam API*, and a small caption:
 
-> Measurement replayed from a recorded live response. Seasonal analysis, makeup
-> colours, garment verdicts and shade rankings are computed live from it. Try-on
-> render is implemented and blocked on API credits.
+> Measurement taken live from the YouCam skin tone analysis endpoint. Seasonal
+> analysis, makeup colours, garment verdicts and shade rankings are computed live
+> from it. Try-on render composited live by the makeup VTO endpoint.
 
 ---
 
 ## What to say if a judge asks
 
 **"Is any of this faked?"**
-No. The measurement is a recorded response from the real endpoint, labelled as
-such on screen and generated from the response's provenance field. Everything
-derived from it is computed at request time.
+No. The measurement and the render are both real calls to the YouCam API. The
+recorded-sample path exists only as a fallback for when units run out, and it is
+labelled as recorded on screen from the response's own provenance field.
 
-**"Why not show the render?"**
-The account's units are exhausted, so the endpoint returns `CreditInsufficiency`.
-The request is built, validated and sent; only the billing check fails. Rather
-than mock an image, the video shows the real error.
+**"How much does a session cost?"**
+One unit per render; the skin tone analysis is the measurement. Everything
+downstream of the measurement is local arithmetic, so the cost is per render, not
+per recommendation.
 
 **"What would you do with more credits?"**
-Re-record scenes 3 and 7 with a live measurement and a real render. No code
-changes are needed for that — the live path is the same code with
-`preferRecorded: false`.
+Nothing structural. The live path is the same code with `preferRecorded: false`,
+and the render is already live.
 
 ---
 

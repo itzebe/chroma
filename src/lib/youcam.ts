@@ -217,6 +217,17 @@ const ENGINE_ERRORS: Record<string, EngineFailure> = {
     message: "The photo is overexposed.",
     guidance: "Avoid direct sunlight or flash; use soft, even light instead.",
   },
+  invalid_parameter: {
+    code: "invalid_parameter",
+    message: "The makeup request was rejected as malformed.",
+    guidance:
+      "This is a problem with the requested look rather than your photo - try a different look, or report it.",
+  },
+  error_nsfw_content_detected: {
+    code: "error_nsfw_content_detected",
+    message: "The image was flagged as unsuitable.",
+    guidance: "Use a plain, fully clothed portrait photo.",
+  },
 };
 
 export function translateEngineError(code: string | null | undefined): EngineFailure {

@@ -16,7 +16,15 @@
 import { adjustChroma, adjustLightness, deltaEHex, hexToLab, withLightness, normalizeHex } from "./color.ts";
 import type { ColorProfile, PaletteEntry, Season } from "./season.ts";
 
-export type Texture = "matte" | "satin" | "gloss" | "shimmer" | "metallic";
+/** Every finish the makeup engine accepts for at least one category. */
+export type Texture =
+  | "matte"
+  | "satin"
+  | "gloss"
+  | "shimmer"
+  | "metallic"
+  | "sheer"
+  | "holographic";
 
 /**
  * Eye shadow depth rules. `MIN_SHADOW_L` is the darkest a shadow may be set to,
@@ -76,6 +84,100 @@ export type LipShape = (typeof LIP_SHAPES)[number];
 
 function clampInt(v: number, lo = 0, hi = 100): number {
   return Math.max(lo, Math.min(hi, Math.round(v)));
+}
+
+/**
+ * Texture-dependent palette fields.
+ *
+ * The published JSON schema marks these optional, but the live engine rejects a
+ * palette that omits them for a given texture - verified against the API, which
+ * reports e.g. "effects.blush.palettes[0].glowStrength is required" for a satin
+ * blush. Both the payload builders and `validateLook` read this table, so a look
+ * cannot be built that the engine will refuse for this reason.
+ */
+const PALETTE_TEXTURE_RULES: Record<string, { texture: Texture[]; fields: string[] }[]> = {
+  lip_color: [
+    {
+      texture: ["gloss", "satin", "sheer", "holographic", "metallic", "shimmer"],
+      fields: ["gloss", "transparencyIntensity"],
+    },
+    {
+      texture: ["shimmer", "metallic", "holographic"],
+      fields: ["shimmerColor", "shimmerIntensity"],
+    },
+  ],
+  blush: [
+    { texture: ["satin", "shimmer"], fields: ["glowStrength"] },
+    { texture: ["shimmer"], fields: ["shimmerColor", "shimmerDensity"] },
+  ],
+  eye_shadow: [
+    { texture: ["shimmer", "metallic"], fields: ["shimmerColor", "shimmerIntensity"] },
+    { texture: ["metallic"], fields: ["metallicIntensity"] },
+  ],
+  eye_liner: [
+    { texture: ["shimmer", "metallic"], fields: ["shimmerColor", "shimmerIntensity"] },
+    { texture: ["metallic"], fields: ["metallicIntensity"] },
+  ],
+  eyebrows: [
+    {
+      texture: ["shimmer"],
+      fields: ["shimmerColor", "shimmerIntensity", "shimmerSize", "shimmerDensity"],
+    },
+  ],
+};
+
+/** Legal texture values per category, from the published effect schemas. */
+const CATEGORY_TEXTURES: Record<string, Texture[]> = {
+  lip_color: ["matte", "gloss", "holographic", "metallic", "satin", "sheer", "shimmer"],
+  blush: ["matte", "satin", "shimmer"],
+  eye_shadow: ["matte", "shimmer", "metallic"],
+  eye_liner: ["matte", "shimmer", "metallic"],
+  eyebrows: ["matte", "shimmer"],
+};
+
+/** Palette fields the engine requires for this category and texture. */
+export function requiredPaletteFields(category: string, texture: string | undefined): string[] {
+  const rules = PALETTE_TEXTURE_RULES[category];
+  if (!rules || !texture) return [];
+  const fields = new Set<string>();
+  for (const rule of rules) {
+    if (rule.texture.includes(texture as Texture)) rule.fields.forEach((f) => fields.add(f));
+  }
+  return [...fields];
+}
+
+/**
+ * Fill in the texture-dependent fields the engine demands, leaving anything the
+ * caller set explicitly untouched. Shimmer uses the palette's own colour so the
+ * sparkle stays in the measured tone rather than introducing a foreign hue.
+ */
+function completePalette(
+  category: string,
+  palette: Record<string, unknown>,
+): Record<string, unknown> {
+  const legal = CATEGORY_TEXTURES[category];
+  let texture = palette.texture as Texture | undefined;
+  if (legal && texture && !legal.includes(texture)) {
+    // `satin` is a valid lip and blush finish but not an eye finish, where the
+    // nearest legal equivalent is `shimmer`.
+    texture = legal.includes("shimmer") ? "shimmer" : legal[0];
+    palette.texture = texture;
+  }
+  const intensity = typeof palette.colorIntensity === "number" ? palette.colorIntensity : 50;
+  const defaults: Record<string, unknown> = {
+    gloss: clampInt(intensity * 0.8),
+    transparencyIntensity: clampInt(intensity * 0.5),
+    glowStrength: clampInt(intensity),
+    shimmerColor: palette.color,
+    shimmerIntensity: clampInt(intensity * 0.7),
+    shimmerSize: clampInt(intensity * 0.6),
+    shimmerDensity: clampInt(intensity * 0.7),
+    metallicIntensity: clampInt(intensity * 0.8),
+  };
+  for (const field of requiredPaletteFields(category, texture)) {
+    if (palette[field] === undefined) palette[field] = defaults[field];
+  }
+  return palette;
 }
 
 function derive(
@@ -220,9 +322,7 @@ function lipEffect(
   rationale: string,
   lipShape: LipShape,
 ): LookEffect {
-  const palette: Record<string, unknown> = { color: color.hex, texture, colorIntensity: clampInt(intensity) };
-  // The engine requires `gloss` when the texture is gloss/satin-like.
-  if (texture === "gloss" || texture === "satin") palette.gloss = clampInt(intensity * 0.8);
+  const palette = completePalette("lip_color", { color: color.hex, texture, colorIntensity: clampInt(intensity) });
   return {
     category: "lip_color",
     payload: {
@@ -243,7 +343,7 @@ function blushEffect(color: DerivedColor, texture: Texture, intensity: number, r
     payload: {
       category: "blush",
       pattern: { name: PATTERNS.blush.label },
-      palettes: [{ color: color.hex, texture, colorIntensity: clampInt(intensity) }],
+      palettes: [completePalette("blush", { color: color.hex, texture, colorIntensity: clampInt(intensity) })],
     },
     rationale,
     color,
@@ -259,11 +359,13 @@ function eyeShadowEffect(
   const isDuo = colors.length === 2;
   const isTrio = colors.length >= 3;
   const pattern = isTrio ? PATTERNS.eyeShadowTrio : isDuo ? PATTERNS.eyeShadowDuo : PATTERNS.eyeShadow;
-  const palettes = colors.slice(0, pattern.colorNum).map((c, i) => ({
-    color: c.hex,
-    texture,
-    colorIntensity: clampInt(intensity - i * 12),
-  }));
+  const palettes = colors.slice(0, pattern.colorNum).map((c, i) =>
+    completePalette("eye_shadow", {
+      color: c.hex,
+      texture,
+      colorIntensity: clampInt(intensity - i * 12),
+    }),
+  );
   return {
     category: "eye_shadow",
     payload: { category: "eye_shadow", pattern: { name: pattern.label }, palettes },
@@ -291,7 +393,7 @@ function browEffect(color: DerivedColor, definition: number, rationale: string):
     payload: {
       category: "eyebrows",
       pattern: { type: "shape", name: PATTERNS.eyebrow.label, curvature: 0, thickness: 0, definition: clampInt(definition) },
-      palettes: [{ color: color.hex, colorIntensity: 55, texture: "matte" }],
+      palettes: [completePalette("eyebrows", { color: color.hex, colorIntensity: 55, texture: "matte" })],
     },
     rationale,
     color,
@@ -623,6 +725,20 @@ export function validateLook(look: Look): string[] {
       const intensity = pal.colorIntensity;
       if (typeof intensity !== "number" || intensity < 0 || intensity > 100) {
         problems.push(`${effect.category}[${i}]: colorIntensity ${String(intensity)} out of 0..100`);
+      }
+      // The engine rejects a palette that omits a field its texture implies.
+      for (const field of requiredPaletteFields(effect.category, pal.texture as string | undefined)) {
+        if (pal[field] === undefined) {
+          problems.push(
+            `${effect.category}[${i}]: texture "${String(pal.texture)}" requires "${field}"`,
+          );
+        }
+      }
+      const legal = CATEGORY_TEXTURES[effect.category];
+      if (legal && pal.texture !== undefined && !legal.includes(pal.texture as Texture)) {
+        problems.push(
+          `${effect.category}[${i}]: texture "${String(pal.texture)}" is not one of ${legal.join(", ")}`,
+        );
       }
     }
   }

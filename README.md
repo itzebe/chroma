@@ -40,9 +40,9 @@ What is demonstrably working today, and what is not:
 | Capability | Status |
 | --- | --- |
 | Skin tone measurement (live API call) | Verified. A live call succeeded, and its captured response is what the **Recorded sample** button replays. |
-| Skin tone measurement (re-run live) | **Blocked.** The account's API units are exhausted, so the endpoint returns `CreditInsufficiency`. |
+| Skin tone measurement (re-run live) | Verified. Runs live against the API, and reports `CreditInsufficiency` honestly if units run out. |
 | Seasonal profile, makeup look computation, garment verdict, shade ranking | Verified. Computed at request time from the measurement. |
-| Makeup virtual try-on render | **Implemented and blocked.** The request is built and validated, then rejected on billing. No render can be shown today. |
+| Makeup virtual try-on render | Verified. All three computed looks render live; the engine returns a composited image of the user's own photo. |
 
 The **Recorded sample** button replays a real captured response so the whole
 product can be exercised without spending units. It is labelled as recorded
@@ -50,7 +50,7 @@ everywhere it appears, and the label is generated from the response's own
 provenance field rather than being hard-coded prose. When the app runs a real
 call, the same label reads "measured live just now".
 
-The app does not mock the render path. Pressing render with exhausted units shows
+The app does not mock the render path. When units run out, pressing render shows
 the API's actual `CreditInsufficiency` error, marked as retryable and as having
 charged no units.
 
@@ -67,7 +67,7 @@ separates this from a colour-analysis wrapper with an API call bolted on:
 | --- | --- |
 | Measured colours | Skin, lip, eye and brow hex values are read from the photo. Nothing asks the user to self-report their undertone. |
 | Computed looks | The makeup engine accepts arbitrary hex colours, so every look is derived from the measured palette by explicit Lab transformations. Each transformation is printed on screen. |
-| Real render | The makeup VTO endpoint composites those computed colours onto the user's actual photo. Built and validated, but blocked on units today — see Verified status. |
+| Real render | The makeup VTO endpoint composites those computed colours onto the user's actual photo. Verified live for all three looks — see Verified status. |
 | Grounded shopping advice | Garment verdicts and shade rankings are perceptual distances from the measured colours, not a static chart. |
 
 The whole product is therefore downstream of one API call. Change the photo and
@@ -127,7 +127,7 @@ whole interface can be explored and judged without spending API units.
 To check the install is sound without any credentials:
 
 ```bash
-npm test        # 97 unit tests, no network access
+npm test        # 100 unit tests, no network access
 npm run verify  # tests, typecheck and production build
 ```
 
@@ -217,6 +217,14 @@ Makeup effect payloads are validated before being sent: each pattern has an
 expected palette count which the engine enforces, so a mismatch is caught
 locally instead of costing a failed request.
 
+Palette entries also carry texture-dependent companion fields. The published
+JSON schema marks these optional, but the live engine rejects a palette that
+omits them and reports the exact omissions — a satin blush without `glowStrength`,
+a shimmer eye shadow without `shimmerColor` and `shimmerIntensity`, a gloss lip
+without `transparencyIntensity`. `PALETTE_TEXTURE_RULES` in `src/lib/looks.ts`
+encodes the matrix, and both the payload builders and `validateLook` read it, so
+a look cannot be built that the engine will refuse for this reason.
+
 ### Not wired up
 
 `src/lib/youcam.ts` also contains a client for the apparel try-on endpoint
@@ -254,9 +262,10 @@ node capture-screenshots.mjs http://localhost:3000 ../screenshots
 python3 inspect-screenshots.py ../screenshots   # flags blank/flat frames
 ```
 
-All screenshots are of the recorded-sample workflow, which is why each one shows
-the "recorded response" label. No screenshot shows a successful try-on render,
-because none can be produced while the account's units are exhausted.
+The screenshots below are of the recorded-sample workflow, which is why each one
+shows the "recorded response" label. The recorded path is captured here so the
+whole interface can be reviewed without spending API units; live renders of all
+three looks are separately verified.
 
 ## Disclaimer
 
