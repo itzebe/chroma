@@ -9,6 +9,10 @@ on them, and ranks product shades against their own skin.
 
 Built for the **YouCam API Skin AI & eCommerce VTO Hackathon**.
 
+- **Live application:** https://chroma-r8sd.vercel.app/
+- **Source repository:** https://github.com/itzebe/chroma
+- **Demo video (2:33):** `submission-assets/video/chroma-demo.mp4`
+
 This is a new project, created during the Hackathon Submission Period (which
 opened 2026-09-29). It has no prior history outside this repository and was not
 derived from an earlier codebase.
@@ -258,8 +262,10 @@ run the app.
 ```
 submission-assets/
   screenshots/         13 screenshots of the running app, plus manifest.json
-  tools/               the scripts that produced them (reproducible)
-  DEMO_SCRIPT.md       narration, scene plan and recording checklist
+  video/               chroma-demo.mp4 (2:33), subtitles, and its provenance notes
+  NARRATION.md         the spoken script, one block per scene
+  JUDGING_NOTES.md     answers to the questions the submission invites
+  tools/               the scripts that produced the screenshots and the video
 ```
 
 `screenshots/manifest.json` records, for every image, the scroll position and the
@@ -292,13 +298,23 @@ The first ten screenshots are of the recorded-sample workflow, which is why they
 show the "recorded response" label. The recorded path is captured there so the
 whole interface can be reviewed without spending API units.
 
-The last three are the live path. `11-live-measurement.png` is a real skin tone
-analysis, and its frame carries the "measured live just now" label and the
-measured hex values straight from that call. `12-live-render.png` is a real
-makeup render of the same photo: its computed look is named "Rust", which is the
-True Autumn signature the live measurement produced, not the "Vermilion" of the
-recorded Bright Spring sample - visible evidence that the render follows the
-measurement rather than a fixture. `13-full-page.png` records the whole page.
+The last three are the live path, captured with the same photo the demo video
+uses. `11-live-measurement.png` is a real skin tone analysis: its frame carries
+the "measured live just now" label and the measured hex values straight from that
+call. `12-live-render.png` is a real makeup render of that same photo.
+`13-full-page.png` records the whole page.
+
+## Demo video
+
+`submission-assets/video/chroma-demo.mp4` is a single, unedited 2:33 run of the
+deployed application. The skin tone analysis (0:32) and the makeup render (1:32)
+are real calls to the YouCam API made by the production deployment during the
+recording; the browser URL bar is in frame throughout. See
+`submission-assets/video/README.md` for the exact timings, the commands that
+produced it, and the provenance of the photo used.
+
+The narration is synthetic speech, used as an accessibility aid, and the same
+words are burned into the video as subtitles so it is legible with the sound off.
 
 ## Disclaimer
 
