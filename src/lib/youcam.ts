@@ -248,10 +248,12 @@ export const KNOWN_ENGINE_ERROR_CODES = Object.keys(ENGINE_ERRORS);
 // ---------------------------------------------------------------------------
 
 interface FileCreateResponse {
-  files: Array<{
-    file_id: string;
-    requests: Array<{ url: string; headers: Record<string, string>; method: string }>;
-  }>;
+  data: {
+    files: Array<{
+      file_id: string;
+      requests: Array<{ url: string; headers: Record<string, string>; method: string }>;
+    }>;
+  };
 }
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -289,7 +291,7 @@ export async function uploadImage(
     },
   });
 
-  const entry = created.files?.[0];
+  const entry = created.data?.files?.[0];
   const target = entry?.requests?.[0];
   if (!entry?.file_id || !target?.url) {
     throw new YouCamError("The YouCam API did not return an upload target.", {
