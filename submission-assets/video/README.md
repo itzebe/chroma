@@ -1,6 +1,6 @@
 # Demo video
 
-`chroma-demo.mp4` — 2:34, 1920×1080, H.264/AAC.
+`chroma-demo.mp4` — 2:33 (152.9s), 1920×1080, H.264/AAC.
 
 ## What the video shows
 

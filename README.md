@@ -11,7 +11,7 @@ Built for the **YouCam API Skin AI & eCommerce VTO Hackathon**.
 
 - **Live application:** https://chroma-r8sd.vercel.app/
 - **Source repository:** https://github.com/itzebe/chroma
-- **Demo video (2:34):** `submission-assets/video/chroma-demo.mp4`
+- **Demo video (2:33):** `submission-assets/video/chroma-demo.mp4`
 
 This is a new project, created during the Hackathon Submission Period (which
 opened 2026-09-29). It has no prior history outside this repository and was not
@@ -262,7 +262,7 @@ run the app.
 ```
 submission-assets/
   screenshots/         13 screenshots of the running app, plus manifest.json
-  video/               chroma-demo.mp4 (2:34), subtitles, and its provenance notes
+  video/               chroma-demo.mp4 (2:33), subtitles, and its provenance notes
   NARRATION.md         the spoken script, one block per scene
   JUDGING_NOTES.md     answers to the questions the submission invites
   tools/               the scripts that produced the screenshots and the video
@@ -306,7 +306,7 @@ call. `12-live-render.png` is a real makeup render of that same photo.
 
 ## Demo video
 
-`submission-assets/video/chroma-demo.mp4` is a single, unedited 2:34 run of the
+`submission-assets/video/chroma-demo.mp4` is a single, unedited 2:33 run of the
 deployed application. The skin tone analysis (0:32) and the makeup render (1:32)
 are real calls to the YouCam API made by the production deployment during the
 recording; the browser URL bar is in frame throughout. See
