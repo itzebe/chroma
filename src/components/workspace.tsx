@@ -98,53 +98,57 @@ export function Workspace() {
     [],
   );
 
-  const run = useCallback(async () => {
-    // Re-check here as well as on selection, so a stale state cannot submit an
-    // oversized file. The server guard is still the authority.
-    if (mode === "live" && file) {
-      const tooBig = fileSizeError(file.size);
-      if (tooBig) {
-        setFileError(tooBig);
-        return;
+  const run = useCallback(
+    async (override?: "recorded" | "live") => {
+      const source = override ?? mode;
+      // Re-check here as well as on selection, so a stale state cannot submit an
+      // oversized file. The server guard is still the authority.
+      if (source === "live" && file) {
+        const tooBig = fileSizeError(file.size);
+        if (tooBig) {
+          setFileError(tooBig);
+          return;
+        }
       }
-    }
-    setBusy(true);
-    try {
-      let res: Response;
-      if (mode === "recorded") {
-        res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preferRecorded: true }),
+      setBusy(true);
+      try {
+        let res: Response;
+        if (source === "recorded") {
+          res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ preferRecorded: true }),
+          });
+        } else if (file) {
+          const form = new FormData();
+          form.append("file", file);
+          res = await fetch("/api/analyze", { method: "POST", body: form });
+        } else if (imageUrl.trim()) {
+          res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: imageUrl.trim() }),
+          });
+        } else {
+          res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ preferRecorded: true }),
+          });
+        }
+        const data = await readApiResult<PipelineResult>(res);
+        setResult(data);
+        requestAnimationFrame(() => {
+          resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
-      } else if (file) {
-        const form = new FormData();
-        form.append("file", file);
-        res = await fetch("/api/analyze", { method: "POST", body: form });
-      } else if (imageUrl.trim()) {
-        res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: imageUrl.trim() }),
-        });
-      } else {
-        res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ preferRecorded: true }),
-        });
+      } catch {
+        setResult(networkFailure("analysis"));
+      } finally {
+        setBusy(false);
       }
-      const data = await readApiResult<PipelineResult>(res);
-      setResult(data);
-      requestAnimationFrame(() => {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    } catch {
-      setResult(networkFailure("analysis"));
-    } finally {
-      setBusy(false);
-    }
-  }, [file, imageUrl, mode]);
+    },
+    [file, imageUrl, mode],
+  );
 
   const canRunLive = Boolean(file || imageUrl.trim());
   const live = mode === "live";
@@ -337,7 +341,7 @@ export function Workspace() {
 
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
               <PrimaryButton
-                onClick={run}
+                onClick={() => void run()}
                 disabled={busy || (live && (!canRunLive || !liveAvailable))}
                 className="w-full sm:w-auto"
               >
@@ -520,7 +524,7 @@ export function Workspace() {
             <GhostButton
               onClick={() => {
                 setMode("recorded");
-                void run();
+                void run("recorded");
               }}
               className="shrink-0"
             >
