@@ -80,9 +80,12 @@ export async function readCappedFormData(request: Request, limit: number): Promi
   }
   const bytes = await readCappedBytes(request, limit);
   try {
-    // The bytes own a plain ArrayBuffer; re-wrap so the DOM types are satisfied.
-    const body = new Blob([new Uint8Array(bytes)], { type: contentType });
-    return await new Response(body).formData();
+    // Pass the boundary through a header, never a Blob `type`: the Blob spec
+    // lowercases `type`, which corrupts a mixed-case boundary (curl and every
+    // browser send one) so the body no longer matches and parsing fails.
+    return await new Response(new Blob([new Uint8Array(bytes)]), {
+      headers: { "content-type": contentType },
+    }).formData();
   } catch {
     throw new MalformedBodyError("The multipart body could not be parsed.");
   }
