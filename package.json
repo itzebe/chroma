@@ -9,12 +9,15 @@
     "start": "next start",
     "test": "node --import ./tests/register.mjs --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "verify": "node --import ./tests/register.mjs --test tests/*.test.ts && tsc --noEmit && next build"
   },
   "dependencies": {
+    "@upstash/redis": "^1.40.0",
     "next": "16.4.3",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

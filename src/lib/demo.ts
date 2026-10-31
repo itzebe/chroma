@@ -93,12 +93,22 @@ export const RECORDED_SAMPLES: RecordedSample[] = [
 
 export const DEFAULT_RECORDED_SAMPLE_ID = "reference-face";
 
-export function getRecordedSample(id?: string): RecordedSample {
-  if (id) {
-    const found = RECORDED_SAMPLES.find((s) => s.id === id);
-    if (found) return found;
-  }
-  return RECORDED_SAMPLES[0];
+/** Look up a recorded sample by id, or undefined when the id is unknown. */
+export function findRecordedSample(id: string): RecordedSample | undefined {
+  return RECORDED_SAMPLES.find((s) => s.id === id);
+}
+
+/**
+ * Resolve a recorded sample.
+ *
+ * With no id, or the explicit default id, this returns the default sample. Any
+ * OTHER id must match a real sample: an unknown id returns undefined rather than
+ * silently falling back to the first one, because a typo must not turn into
+ * "measure the reference face instead" without anyone noticing.
+ */
+export function getRecordedSample(id?: string): RecordedSample | undefined {
+  if (!id || id === DEFAULT_RECORDED_SAMPLE_ID) return RECORDED_SAMPLES[0];
+  return findRecordedSample(id);
 }
 
 /**

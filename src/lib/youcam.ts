@@ -16,10 +16,7 @@
 
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./upload-limit.ts";
 
-export type TaskPath =
-  | "/s2s/v2.0/task/skin-tone-analysis"
-  | "/s2s/v2.0/task/makeup-vto"
-  | "/s2s/v2.0/task/cloth-v4";
+export type TaskPath = "/s2s/v2.0/task/skin-tone-analysis" | "/s2s/v2.0/task/makeup-vto";
 
 const DEFAULT_BASE = "https://yce-api-01.makeupar.com";
 
@@ -260,14 +257,22 @@ interface FileCreateResponse {
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
+/** Shortest upload budget worth attempting; below this we give up cleanly. */
+const MIN_UPLOAD_BUDGET_MS = 2_000;
+
 /**
  * Upload an image and return its YouCam `file_id`.
  * Validates size and MIME type before spending any API units.
+ *
+ * `timeoutMs` bounds the WHOLE upload (file-create plus the byte PUT), so a slow
+ * presigned target cannot hold the function open past the route's deadline. The
+ * PUT is the step that was previously unbounded.
  */
 export async function uploadImage(
   bytes: Uint8Array,
   contentType: string,
   fileName: string,
+  opts: { timeoutMs?: number } = {},
 ): Promise<string> {
   if (!ALLOWED_MIME.has(contentType.toLowerCase())) {
     throw new YouCamError("Only JPEG and PNG images are supported.", {
@@ -285,11 +290,16 @@ export async function uploadImage(
     });
   }
 
+  const budgetMs = Math.max(MIN_UPLOAD_BUDGET_MS, opts.timeoutMs ?? 60_000);
+  const deadline = Date.now() + budgetMs;
+
+  // The create call shares the budget with the PUT, so neither can starve the other.
   const created = await request<FileCreateResponse>("/s2s/v2.0/file", {
     method: "POST",
     body: {
       files: [{ content_type: contentType, file_name: fileName, file_size: bytes.byteLength }],
     },
+    timeoutMs: Math.max(MIN_UPLOAD_BUDGET_MS, Math.floor(budgetMs / 2)),
   });
 
   const entry = created.data?.files?.[0];
@@ -301,19 +311,42 @@ export async function uploadImage(
     });
   }
 
-  // Step 2: PUT the bytes to the presigned URL. Documented failure mode is a
-  // 500/404 from later task calls if this step is skipped.
-  const putRes = await fetch(target.url, {
-    method: target.method || "PUT",
-    headers: target.headers,
-    body: new Uint8Array(bytes),
-  });
-  if (!putRes.ok) {
-    throw new YouCamError(`Uploading the image failed (${putRes.status}).`, {
+  // Step 2: PUT the bytes to the presigned URL, bounded by what is left. The
+  // documented failure mode of skipping this step is a 500/404 from later task
+  // calls, so it must complete, but it must also not run forever.
+  const remaining = deadline - Date.now();
+  const putController = new AbortController();
+  const putTimer = setTimeout(() => putController.abort(), Math.max(MIN_UPLOAD_BUDGET_MS, remaining));
+  try {
+    const putRes = await fetch(target.url, {
+      method: target.method || "PUT",
+      headers: target.headers,
+      body: new Uint8Array(bytes),
+      signal: putController.signal,
+    });
+    if (!putRes.ok) {
+      throw new YouCamError(`Uploading the image failed (${putRes.status}).`, {
+        code: "UploadFailed",
+        status: 502,
+        retryable: true,
+      });
+    }
+  } catch (err) {
+    if (err instanceof YouCamError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new YouCamError("Uploading the image timed out.", {
+        code: "UploadTimeout",
+        status: 504,
+        retryable: true,
+      });
+    }
+    throw new YouCamError("Uploading the image failed.", {
       code: "UploadFailed",
       status: 502,
       retryable: true,
     });
+  } finally {
+    clearTimeout(putTimer);
   }
 
   return entry.file_id;
@@ -350,6 +383,11 @@ export interface TaskData {
 }
 
 export interface PollOptions {
+  /**
+   * Total wall-clock budget for the whole task (start + every poll). Must stay
+   * strictly below the route's `maxDuration`, or the platform kills the function
+   * mid-flight and a paid task is left running upstream.
+   */
   timeoutMs?: number;
   intervalMs?: number;
   signal?: AbortSignal;
@@ -357,10 +395,16 @@ export interface PollOptions {
 
 const TERMINAL = new Set(["success", "error"]);
 
+/** Shortest time worth spending on a poll; below this we give up cleanly. */
+const MIN_POLL_BUDGET_MS = 1_500;
+
 /**
  * Start a task and poll until it reaches a terminal state.
- * Throws YouCamError only for transport/auth problems; an engine failure is
- * returned so the caller can show guidance (and note that no units were spent).
+ *
+ * Every poll is bounded by the REMAINING budget, so the final request can never
+ * outlive the deadline. Throws YouCamError only for transport/auth/timeout
+ * problems; an engine failure is returned so the caller can show guidance (and
+ * note that no units were spent).
  */
 export async function runTask(
   path: TaskPath,
@@ -368,9 +412,17 @@ export async function runTask(
   opts: PollOptions = {},
 ): Promise<TaskData> {
   const timeoutMs = opts.timeoutMs ?? 120_000;
-  const intervalMs = opts.intervalMs ?? 2_000;
+  // The poll interval is overridable so tests do not spend seconds sleeping.
+  const envInterval = Number(process.env.YOUCAM_POLL_INTERVAL_MS ?? "");
+  const intervalMs = opts.intervalMs ?? (Number.isFinite(envInterval) && envInterval > 0 ? envInterval : 2_000);
+  const deadline = Date.now() + timeoutMs;
 
-  const created = await request<CreateTaskResponse>(path, { method: "POST", body });
+  // The create call shares the budget: it must not eat the whole window.
+  const created = await request<CreateTaskResponse>(path, {
+    method: "POST",
+    body,
+    timeoutMs: Math.max(MIN_POLL_BUDGET_MS, Math.floor(timeoutMs / 4)),
+  });
   const taskId = created?.data?.task_id;
   if (!taskId) {
     throw new YouCamError("The YouCam API did not return a task id.", {
@@ -379,7 +431,6 @@ export async function runTask(
     });
   }
 
-  const deadline = Date.now() + timeoutMs;
   let attempt = 0;
   while (Date.now() < deadline) {
     if (opts.signal?.aborted) {
@@ -387,11 +438,17 @@ export async function runTask(
     }
     // Mild backoff: the engine usually finishes in a few seconds.
     const wait = Math.min(intervalMs * (1 + attempt * 0.25), 5_000);
+    const remainingAfterWait = deadline - Date.now() - wait;
+    if (remainingAfterWait < MIN_POLL_BUDGET_MS) break;
     await new Promise((r) => setTimeout(r, wait));
     attempt++;
 
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_POLL_BUDGET_MS) break;
+
+    // The poll's own timeout is capped by what is left, so it cannot overrun.
     const res = await request<{ data: TaskData }>(`${path}/${encodeURIComponent(taskId)}`, {
-      timeoutMs: 30_000,
+      timeoutMs: Math.min(30_000, remaining),
     });
     const data = res?.data;
     if (!data?.task_status) {
@@ -495,50 +552,6 @@ export async function applyMakeup(
     | Array<{ url?: string; download_url?: string }>
     | undefined;
 
-  const url = Array.isArray(results)
-    ? (results[0]?.url ?? results[0]?.download_url)
-    : (results?.url ?? results?.download_url);
-
-  if (!url) {
-    throw new YouCamError("The YouCam API reported success but returned no image.", {
-      code: "MissingResultUrl",
-      status: 502,
-    });
-  }
-  return { ok: true, imageUrl: url };
-}
-
-export interface ClothOutcome {
-  ok: boolean;
-  imageUrl?: string;
-  failure?: EngineFailure;
-}
-
-/** Apparel virtual try-on. Requires a full-body reference photo. */
-export async function tryOnClothing(
-  source: TaskSource,
-  garmentUrl: string,
-  garmentCategory: string,
-  opts: PollOptions = {},
-): Promise<ClothOutcome> {
-  const data = await runTask(
-    "/s2s/v2.0/task/cloth-v4",
-    {
-      ...sourceFields(source),
-      ref_file_url: garmentUrl,
-      garment_category: garmentCategory,
-    },
-    opts,
-  );
-
-  if (data.task_status !== "success") {
-    return { ok: false, failure: translateEngineError(data.error ?? data.failure_reason) };
-  }
-
-  const results = data.results as
-    | { url?: string; download_url?: string }
-    | Array<{ url?: string; download_url?: string }>
-    | undefined;
   const url = Array.isArray(results)
     ? (results[0]?.url ?? results[0]?.download_url)
     : (results?.url ?? results?.download_url);
