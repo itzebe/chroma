@@ -128,7 +128,7 @@ whole interface can be explored and judged without spending API units.
 To check the install is sound without any credentials:
 
 ```bash
-npm test        # 129 unit tests, no network access
+npm test        # 177 unit tests, no network access
 npm run verify  # tests, typecheck and production build
 ```
 
@@ -138,9 +138,34 @@ npm run verify  # tests, typecheck and production build
 | --- | --- | --- |
 | `YOUCAM_API_KEY` | yes | Server-side only. Never sent to the browser. |
 | `YOUCAM_API_BASE_URL` | no | Defaults to `https://yce-api-01.makeupar.com`. |
+| `CHROMA_TICKET_SECRET` | public deploy | Signs the render ticket. `openssl rand -base64 32`. |
+| `CHROMA_API_TOKEN` | public deploy | Shared bearer token required from clients. |
+| `UPSTASH_REDIS_REST_URL` | public deploy | Distributed rate limit + daily spend ceiling. |
+| `UPSTASH_REDIS_REST_TOKEN` | public deploy | Upstash token for the above. |
+| `CHROMA_RATE_LIMIT_PER_MIN` | no | Per-IP requests/minute. Default 8. |
+| `CHROMA_DAILY_UNIT_CEILING` | no | Global daily YouCam units. Default 2000. |
+| `CHROMA_ALLOWED_ORIGINS` | no | Comma-separated extra origins allowed to call the API. |
 
 The key is read from the environment at call time. It is never logged, never
 included in a response, and never written to a file in this repository.
+
+### Before a public deployment
+
+The app spends real money on the YouCam API, so the routes are guarded. Three
+things must be true before you expose it to the internet:
+
+1. **`CHROMA_TICKET_SECRET` is set.** Without it, live rendering is refused (the
+   recorded sample still renders). The ticket is an HMAC that binds a
+   measurement to the exact photo it came from, so a client cannot ask for makeup
+   on someone else's face or label a replayed fixture "live".
+2. **`UPSTASH_REDIS_REST_URL`/`_TOKEN` are set.** The rate limit and the daily
+   unit ceiling are enforced in Redis with atomic scripts. If the store is
+   missing or unreachable, requests that would spend units **fail closed** (503)
+   rather than running unmetered.
+3. **`CHROMA_API_TOKEN` is set** if the deployment is not otherwise protected.
+   Origin checks are a CSRF defence, not authentication; without a token any
+   non-browser client that can reach the URL can spend the budget (up to the
+   ceiling).
 
 ### Upload size
 
@@ -173,6 +198,8 @@ src/lib/pipeline.ts   orchestration, evidence labelling, preflight checks
 src/lib/upload-limit.ts  the 4 MB upload cap, shared by browser and route
 src/lib/api-response.ts  fetch response -> result, without mislabelling errors
 src/lib/demo.ts       the recorded live response used by the sample button
+src/lib/errors.ts     server-side error logging; user-facing text stays generic
+src/lib/security/*    access control, budget, SSRF guard, body caps, tickets
 src/app/api/analyze   POST: selfie -> measurement, profile, looks
 src/app/api/render    POST: computed look -> YouCam makeup VTO render
 src/components/*      the five UI steps

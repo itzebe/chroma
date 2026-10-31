@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PipelineResult } from "@/lib/pipeline";
 import { readApiResult, networkFailure } from "@/lib/api-response";
 import { fileSizeError, MAX_UPLOAD_MB } from "@/lib/upload-limit";
+import { DEFAULT_RECORDED_SAMPLE_ID } from "@/lib/demo";
 import { Panel, SectionHeading, Badge, Callout } from "./ui";
 import { MeasuredColours, SeasonProfile, PaletteAndSignals } from "./profile";
 import { LookGallery } from "./looks";
@@ -87,7 +88,6 @@ export function Workspace() {
     }
   }, [file, imageUrl, preferRecorded]);
 
-  const liveImageUrl = !preferRecorded && imageUrl.trim() ? imageUrl.trim() : undefined;
   const canRunLive = Boolean(file || imageUrl.trim());
 
   return (
@@ -320,11 +320,8 @@ export function Workspace() {
             <LookGallery
               looks={result.looks}
               profile={result.profile}
-              imageUrl={liveImageUrl}
-              measured={result.measured}
-              quality={result.quality}
-              source={result.source}
-              sourceRef={result.sourceRef}
+              ticket={result.ticket ?? null}
+              recordedSampleId={result.source === "recorded" ? DEFAULT_RECORDED_SAMPLE_ID : undefined}
               apiConfigured={Boolean(health?.apiConfigured)}
             />
             <GarmentChecker profile={result.profile} />

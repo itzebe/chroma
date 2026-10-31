@@ -1,0 +1,50 @@
+name: CI
+
+# Run on every pull request into the default branch, and on every push to it,
+# so a change cannot land without passing the same checks used locally by
+# `npm run verify`.
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+# Least privilege: the job only reads the repository. No secrets are required,
+# because the whole suite runs against stubbed transports (no live API calls).
+permissions:
+  contents: read
+
+# A newer push to the same ref makes the in-flight run redundant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: tests, typecheck, build, lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Node 24 is the version this project is developed and tested against
+      # (see README). The test runner executes TypeScript directly, which needs
+      # Node's built-in type stripping, so the version must be >= 23.6.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      # Reproducible install from the committed lockfile. Fails if
+      # package.json and package-lock.json disagree, which keeps CI honest.
+      - name: Install dependencies
+        run: npm ci
+
+      # Tests + tsc + production build. Any failure fails the job.
+      - name: Verify (tests, typecheck, build)
+        run: npm run verify
+
+      # Lint is a separate gate so a lint failure is reported distinctly.
+      - name: Lint
+        run: npm run lint

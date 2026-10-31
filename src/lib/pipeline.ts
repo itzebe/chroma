@@ -12,7 +12,8 @@
 import { classify, type ColorProfile } from "./season.ts";
 import { buildLooks, toMakeupRequest, validateLook, type Look } from "./looks.ts";
 import { analyzeSkinTone, isConfigured, YouCamError, type SkinToneOutcome } from "./youcam.ts";
-import { getRecordedSample } from "./demo.ts";
+import { DEFAULT_RECORDED_SAMPLE_ID, getRecordedSample } from "./demo.ts";
+import { logServerError } from "./errors.ts";
 
 export type DataSource = "live" | "recorded";
 
@@ -50,6 +51,12 @@ export interface PipelineSuccess {
   /** Structural problems found before sending anything to the engine. */
   preflight: Array<{ lookId: string; problems: string[] }>;
   warnings: string[];
+  /**
+   * Signed render ticket, attached by the analyse route when ticket signing is
+   * configured. Carries the measurement and the true photo reference so the
+   * render route never has to trust the client for either.
+   */
+  ticket?: string | null;
 }
 
 export interface PipelineFailure {
@@ -79,6 +86,8 @@ export interface AnalyzeOptions {
   recordedSampleId?: string;
   /** Force recorded mode even if a key exists. */
   preferRecorded?: boolean;
+  /** A file id already uploaded by the caller, so bytes are not uploaded twice. */
+  preUploadedFileId?: string;
   timeoutMs?: number;
   signal?: AbortSignal;
 }
@@ -126,12 +135,17 @@ function failureFromYouCam(err: YouCamError): PipelineFailure {
       unitsSpent: false,
     };
   }
+  // Fall through: the upstream message may carry internal detail, so it is logged
+  // and never returned. The user gets a stable explanation keyed by the code.
+  logServerError("analyze:youcam", err);
   return {
     ok: false,
     source: "live",
     code: err.code,
     title: err.retryable ? "The YouCam API is temporarily unavailable" : "The YouCam API rejected the request",
-    message: err.message,
+    message: err.retryable
+      ? "The YouCam API could not be reached or did not respond in time. Nothing was measured."
+      : "The YouCam API refused this request. Nothing was measured and nothing was charged.",
     guidance: err.retryable
       ? "Wait a moment and try again. If it keeps failing, check the YouCam API status."
       : "Check the image and the request, then try again.",
@@ -167,12 +181,13 @@ export function buildResult(
   try {
     profile = classify({ colors, quality });
   } catch (err) {
+    logServerError("analyze:classify", err);
     return {
       ok: false,
       source,
       code: "ClassificationFailed",
       title: "The measured colours could not be classified",
-      message: err instanceof Error ? err.message : "Unknown classification error.",
+      message: "The measured colours could not be turned into a season profile.",
       guidance: "This is a bug in the analysis step rather than a problem with your photo.",
       retryable: false,
       unitsSpent: source === "live",
@@ -228,10 +243,25 @@ export function buildResult(
 /** Build a result from the recorded fixture, clearly labelled. */
 export function recordedResult(sampleId?: string): PipelineResult {
   const sample = getRecordedSample(sampleId);
+  if (!sample) {
+    return {
+      ok: false,
+      source: "recorded",
+      code: "UnknownSample",
+      title: "That recorded sample does not exist",
+      message: `No recorded sample is registered under that id. The only registered id is "${DEFAULT_RECORDED_SAMPLE_ID}".`,
+      guidance: "Load the recorded analysis from the interface to use the default sample.",
+      retryable: false,
+      unitsSpent: false,
+    };
+  }
   return buildResult(
     "recorded",
     `Recorded response, captured ${sample.capturedAt} from ${sample.endpoint}. This is real API output that is replayed, not a new measurement.`,
     { ok: true, results: sample.response.results },
+    // The recorded sample's own photo, so a recorded render composites onto the
+    // same face the recorded numbers describe rather than an arbitrary image.
+    { fileUrl: sample.imageUrl },
   );
 }
 
@@ -299,7 +329,7 @@ export async function analyze(opts: AnalyzeOptions = {}): Promise<PipelineResult
     return recorded;
   }
 
-  if (!opts.bytes && !opts.imageUrl) {
+  if (!opts.bytes && !opts.imageUrl && !opts.preUploadedFileId) {
     return {
       ok: false,
       source: "live",
@@ -313,9 +343,24 @@ export async function analyze(opts: AnalyzeOptions = {}): Promise<PipelineResult
   }
 
   try {
-    const source = opts.imageUrl ? { fileUrl: opts.imageUrl } : { fileId: await uploadFor(opts) };
+    // One wall-clock budget covers the WHOLE live path (upload then analysis), so
+    // the sum of the stages can never exceed the route's `maxDuration` (120s).
+    // Previously the upload was unbounded and the analysis had its own 100s, so a
+    // slow upload plus a slow analysis could outlive the function.
+    const totalBudgetMs = opts.timeoutMs ?? 100_000;
+    const deadline = Date.now() + totalBudgetMs;
+    const source = opts.preUploadedFileId
+      ? { fileId: opts.preUploadedFileId }
+      : opts.imageUrl
+        ? { fileUrl: opts.imageUrl }
+        : { fileId: await uploadFor(opts, Math.min(45_000, Math.floor(totalBudgetMs / 2))) };
+
+    const analysisBudgetMs = Math.max(5_000, deadline - Date.now());
     const outcome = await analyzeSkinTone(source, {
-      timeoutMs: opts.timeoutMs ?? 120_000,
+      // Strictly below the route's `maxDuration` (120s), otherwise the platform
+      // kills the function at the same instant our own deadline fires and the
+      // user sees a platform timeout instead of an actionable error.
+      timeoutMs: analysisBudgetMs,
       signal: opts.signal,
       faceAngleStrictness: "high",
     });
@@ -341,12 +386,13 @@ export async function analyze(opts: AnalyzeOptions = {}): Promise<PipelineResult
     );
   } catch (err) {
     if (err instanceof YouCamError) return failureFromYouCam(err);
+    logServerError("analyze", err);
     return {
       ok: false,
       source: "live",
       code: "UnexpectedError",
       title: "Something went wrong",
-      message: err instanceof Error ? err.message : "Unknown error.",
+      message: "The analysis could not be completed.",
       guidance: "Try again, or use the recorded sample to explore the app.",
       retryable: true,
       unitsSpent: false,
@@ -355,8 +401,8 @@ export async function analyze(opts: AnalyzeOptions = {}): Promise<PipelineResult
 }
 
 /** Upload bytes and return the YouCam file id. Kept separate so `analyze` stays readable. */
-async function uploadFor(opts: AnalyzeOptions): Promise<string> {
+async function uploadFor(opts: AnalyzeOptions, timeoutMs: number): Promise<string> {
   const { uploadImage } = await import("./youcam.ts");
   if (!opts.bytes) throw new YouCamError("No image bytes to upload.", { code: "NoImage", status: 400 });
-  return uploadImage(opts.bytes, opts.contentType ?? "image/jpeg", opts.fileName ?? "selfie.jpg");
+  return uploadImage(opts.bytes, opts.contentType ?? "image/jpeg", opts.fileName ?? "selfie.jpg", { timeoutMs });
 }
