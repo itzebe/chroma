@@ -1,0 +1,190 @@
+{
+  "base": "http://localhost:3001",
+  "capturedAt": "2026-10-31T20:33:10.476Z",
+  "shots": [
+    {
+      "file": "desktop-01-homepage.png",
+      "scrollY": 0,
+      "fullPage": false,
+      "visibleText": [
+        "Chroma",
+        "Skin intelligence & virtual try-on",
+        "One photo is measured by the YouCam API, and every colour, look and shade below is computed from your own face.",
+        "Start with a photo",
+        "Recorded sample",
+        "Live measurement",
+        "Drop a photo, or tap to choose one",
+        "Front-facing, one face, even light · JPEG or PNG up to 4 MB",
+        "Measure my skin colours",
+        "How CHROMA works",
+        "Measured, then computed",
+        "Three steps, all downstream of one YouCam measurement.",
+        "01",
+        "Measure",
+        "The API reads the skin, lip, eye and brow colours off your photo.",
+        "02",
+        "Interpret",
+        "Those colours become a seasonal profile, scored on depth, contrast and warmth.",
+        "03",
+        "Create",
+        "Looks, garment verdicts and shade rankings are computed from your palette."
+      ]
+    },
+    {
+      "file": "desktop-02-photo-tips-open.png",
+      "scrollY": 0,
+      "fullPage": false,
+      "visibleText": [
+        "Chroma",
+        "Skin intelligence & virtual try-on",
+        "One photo is measured by the YouCam API, and every colour, look and shade below is computed from your own face.",
+        "Start with a photo",
+        "Recorded sample",
+        "Live measurement",
+        "Drop a photo, or tap to choose one",
+        "Front-facing, one face, even light · JPEG or PNG up to 4 MB",
+        "Use an image link instead",
+        "Paste a public URL if the photo is already hosted somewhere.",
+        "How CHROMA works",
+        "Measured, then computed",
+        "Three steps, all downstream of one YouCam measurement.",
+        "01",
+        "Measure",
+        "The API reads the skin, lip, eye and brow colours off your photo.",
+        "02",
+        "Interpret",
+        "Those colours become a seasonal profile, scored on depth, contrast and warmth.",
+        "03",
+        "Create",
+        "Looks, garment verdicts and shade rankings are computed from your palette."
+      ]
+    },
+    {
+      "file": "desktop-03-recorded-result.png",
+      "scrollY": 1025,
+      "fullPage": false,
+      "visibleText": [
+        "recorded response",
+        "Recorded response, captured 2026-10-24 from POST /s2s/v2.0/task/skin-tone-analysis. This is real API output that is replayed, not a new measurement.",
+        "Step 01 — measured",
+        "Your colours, as measured",
+        "Straight from the YouCam skin tone analysis. Nothing adjusted, averaged or filled in.",
+        "#ba8e6e",
+        "Skin",
+        "#c98e93",
+        "Lips",
+        "#553829",
+        "Eyes",
+        "#3e3834",
+        "Brows",
+        "Some features were not returned",
+        "Step 02 — interpreted",
+        "Your seasonal profile",
+        "A styling framework, not a measurement.",
+        "Bright Spring",
+        "spring",
+        "confidence high",
+        "Warm and highly saturated with strong contrast. Clear, vivid colors hold their own against the face; muted tones read as washed out.",
+        "What drove this result",
+        "Each axis is scored independently. The highest score picks the season family; the runners-up are shown so you can judge how clear-cut it was.",
+        "bright",
+        "0.62"
+      ]
+    },
+    {
+      "file": "desktop-04-recorded-result-full.png",
+      "scrollY": 0,
+      "fullPage": true,
+      "visibleText": [
+        "Chroma",
+        "Skin intelligence & virtual try-on",
+        "One photo is measured by the YouCam API, and every colour, look and shade below is computed from your own face.",
+        "Start with a photo",
+        "Recorded sample",
+        "Live measurement",
+        "Replays a response captured from the live API, so you can explore the whole product without spending units.",
+        "Load the recorded analysis",
+        "How CHROMA works",
+        "Measured, then computed",
+        "Three steps, all downstream of one YouCam measurement.",
+        "01",
+        "Measure",
+        "The API reads the skin, lip, eye and brow colours off your photo.",
+        "02",
+        "Interpret",
+        "Those colours become a seasonal profile, scored on depth, contrast and warmth.",
+        "03",
+        "Create",
+        "Looks, garment verdicts and shade rankings are computed from your palette."
+      ]
+    },
+    {
+      "file": "mobile-01-homepage.png",
+      "scrollY": 0,
+      "fullPage": false,
+      "visibleText": [
+        "Chroma",
+        "Skin intelligence & virtual try-on",
+        "One photo is measured by the YouCam API, and every colour, look and shade below is computed from your own face.",
+        "Start with a photo",
+        "Recorded sample",
+        "Live measurement",
+        "Drop a photo, or tap to choose one",
+        "Front-facing, one face, even light · JPEG or PNG up to 4 MB"
+      ]
+    },
+    {
+      "file": "mobile-02-photo-tips-open.png",
+      "scrollY": 0,
+      "fullPage": false,
+      "visibleText": [
+        "Chroma",
+        "Skin intelligence & virtual try-on",
+        "One photo is measured by the YouCam API, and every colour, look and shade below is computed from your own face.",
+        "Start with a photo",
+        "Recorded sample",
+        "Live measurement",
+        "Drop a photo, or tap to choose one",
+        "Front-facing, one face, even light · JPEG or PNG up to 4 MB",
+        "Use an image link instead",
+        "Paste a public URL if the photo is already hosted somewhere."
+      ]
+    },
+    {
+      "file": "mobile-03-recorded-result.png",
+      "scrollY": 1573,
+      "fullPage": false,
+      "visibleText": [
+        "recorded response",
+        "Recorded response, captured 2026-10-24 from POST /s2s/v2.0/task/skin-tone-analysis. This is real API output that is replayed, not a new measurement.",
+        "Step 01 — measured",
+        "Your colours, as measured",
+        "Straight from the YouCam skin tone analysis. Nothing adjusted, averaged or filled in.",
+        "#ba8e6e",
+        "Skin",
+        "#c98e93",
+        "Lips",
+        "#553829",
+        "Eyes",
+        "#3e3834",
+        "Brows",
+        "Some features were not returned"
+      ]
+    },
+    {
+      "file": "mobile-04-recorded-result-full.png",
+      "scrollY": 0,
+      "fullPage": true,
+      "visibleText": [
+        "Chroma",
+        "Skin intelligence & virtual try-on",
+        "One photo is measured by the YouCam API, and every colour, look and shade below is computed from your own face.",
+        "Start with a photo",
+        "Recorded sample",
+        "Live measurement",
+        "Replays a response captured from the live API, so you can explore the whole product without spending units.",
+        "Load the recorded analysis"
+      ]
+    }
+  ]
+}

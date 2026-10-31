@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ColorProfile } from "@/lib/season";
 import { evaluateGarment, suggestPairings, nudgeTowardSeason, type GarmentVerdict } from "@/lib/garment";
-import { Panel, SectionHeading, Swatch, Badge, Callout } from "./ui";
+import { Section, SectionHeading, Swatch, Badge, Callout, Disclosure } from "./ui";
 
 const SWATCHES = [
   { name: "Black", hex: "#111111" },
@@ -58,14 +58,14 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
   }
 
   return (
-    <Panel className="p-5">
+    <Section>
       <SectionHeading
-        eyebrow="Step 4 — shopping"
+        eyebrow="Step 04 — shopping"
         title="Will this colour work on you?"
-        note="Check any garment or product colour against your palette before you buy. The verdict is measured with CIEDE2000, the same perceptual distance the makeup generator uses."
+        note="Check any colour against your palette before you buy. Measured with CIEDE2000, the same perceptual distance the makeup generator uses."
       />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div>
           <label htmlFor="garment-hex" className="text-sm font-medium text-haze-100">
             Colour to check
@@ -75,12 +75,12 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
               id="garment-hex"
               value={input}
               onChange={(e) => commit(e.target.value)}
-              className="w-32 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2 font-mono text-sm text-haze-100"
+              className="min-h-11 w-36 rounded-xl border border-ink-600 bg-ink-850 px-3 py-2 font-mono text-sm text-haze-100"
               placeholder="#c19a6b"
               aria-describedby="garment-hex-help"
             />
             <div
-              className="swatch h-10 w-10 rounded-lg"
+              className="swatch h-11 w-11 rounded-xl"
               style={{ backgroundColor: hex }}
               role="img"
               aria-label={`Selected colour ${hex}`}
@@ -95,8 +95,8 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
               <li key={s.hex}>
                 <button
                   onClick={() => commit(s.hex)}
-                  className={`swatch block h-10 w-full rounded-lg ${
-                    hex.toLowerCase() === s.hex.toLowerCase() ? "ring-2 ring-signal-400" : ""
+                  className={`swatch block h-11 w-full rounded-xl ${
+                    hex.toLowerCase() === s.hex.toLowerCase() ? "ring-2 ring-blush-400" : ""
                   }`}
                   style={{ backgroundColor: s.hex }}
                   aria-label={`Check ${s.name}`}
@@ -106,14 +106,14 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
             ))}
           </ul>
 
-          <div className="mt-4">
-            <h4 className="text-sm font-semibold text-haze-100">Your palette, for reference</h4>
+          <div className="mt-5">
+            <h3 className="eyebrow text-haze-400">Your palette, for reference</h3>
             <ul className="mt-2 grid grid-cols-4 gap-2">
               {profile.season.palette.slice(0, 8).map((p) => (
                 <li key={p.hex}>
                   <button
                     onClick={() => commit(p.hex)}
-                    className="swatch block h-8 w-full rounded"
+                    className="swatch block h-10 w-full rounded-lg"
                     style={{ backgroundColor: p.hex }}
                     aria-label={`Check ${p.name}`}
                     title={p.name}
@@ -133,14 +133,14 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
                   ΔE {advice.distance.toFixed(1)} from &ldquo;{advice.nearest.name}&rdquo;
                 </span>
               </div>
-              <h3 className="mt-3 text-lg font-semibold text-haze-100">{advice.headline}</h3>
+              <h3 className="display mt-3 text-xl font-medium text-haze-100">{advice.headline}</h3>
               <p className="mt-2 text-sm leading-relaxed text-haze-200">{advice.detail}</p>
-              <p className="mt-3 rounded-lg border border-ink-700 bg-ink-850 p-3 text-sm leading-relaxed text-haze-100">
+              <p className="mt-3 rounded-xl border border-ink-700 bg-ink-850 p-3.5 text-sm leading-relaxed text-haze-100">
                 {advice.advice}
               </p>
 
               {advice.pairing ? (
-                <div className="mt-4">
+                <div className="mt-5">
                   <h4 className="text-sm font-semibold text-haze-100">Pair it with</h4>
                   <div className="mt-2 max-w-[10rem]">
                     <Swatch hex={advice.pairing.hex} label={advice.pairing.name} sublabel={advice.pairing.role} size="sm" />
@@ -149,7 +149,7 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
               ) : null}
 
               {pairings.pairs.length > 0 ? (
-                <div className="mt-4">
+                <div className="mt-5">
                   <h4 className="text-sm font-semibold text-haze-100">Other colours from your palette</h4>
                   <p className="mt-1 text-xs leading-relaxed text-haze-300">{pairings.reason}</p>
                   <ul className="mt-2 grid grid-cols-3 gap-2">
@@ -163,22 +163,19 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
               ) : null}
 
               {advice.verdict !== "excellent" && nudges.length > 0 ? (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-haze-100">
-                    If you want to buy something closer
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-haze-300">
-                    A gradual walk from the colour you checked toward your nearest palette colour, so
-                    you can see how small the change can be.
-                  </p>
-                  <ul className="mt-2 grid grid-cols-4 gap-2">
+                <Disclosure
+                  className="mt-5"
+                  summary="If you want to buy something closer"
+                  hint="A gradual walk from this colour toward your nearest palette colour."
+                >
+                  <ul className="grid grid-cols-4 gap-2">
                     {nudges.map((n, i) => (
                       <li key={n}>
                         <Swatch hex={n} label={`step ${i + 1}`} size="sm" />
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Disclosure>
               ) : null}
             </>
           ) : (
@@ -188,6 +185,6 @@ export function GarmentChecker({ profile }: { profile: ColorProfile }) {
           )}
         </div>
       </div>
-    </Panel>
+    </Section>
   );
 }
