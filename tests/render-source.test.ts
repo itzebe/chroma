@@ -17,7 +17,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classify } from "../src/lib/season.ts";
-import { buildLooks } from "../src/lib/looks.ts";
 import { buildResult, recordedResult, resultFromMeasurement } from "../src/lib/pipeline.ts";
 
 const measured = {

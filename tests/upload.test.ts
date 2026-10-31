@@ -103,3 +103,39 @@ test("uploadImage rejects an unsupported type before calling the API", async () 
   );
   assert.equal(called, false, "no network call should be made for a rejected type");
 });
+
+test("uploadImage aborts a stalled presigned PUT instead of hanging", async () => {
+  // The PUT is the step that used to be unbounded. It must honour the budget.
+  await assert.rejects(
+    () =>
+      withStubbedFetch(
+        (url, init) => {
+          if (url.includes("/s2s/v2.0/file")) return new Response(JSON.stringify(CREATE_RESPONSE), { status: 200 });
+          // Simulate a server that never responds until the signal aborts.
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              const err = new Error("aborted");
+              err.name = "AbortError";
+              reject(err);
+            });
+          }) as unknown as Response;
+        },
+        () => uploadImage(bytes, "image/jpeg", "selfie.jpg", { timeoutMs: 2_000 }),
+      ),
+    (err: unknown) => err instanceof YouCamError && err.code === "UploadTimeout",
+  );
+});
+
+test("uploadImage reports a non-OK PUT as an upload failure", async () => {
+  await assert.rejects(
+    () =>
+      withStubbedFetch(
+        (url) =>
+          url.includes("/s2s/v2.0/file")
+            ? new Response(JSON.stringify(CREATE_RESPONSE), { status: 200 })
+            : new Response("nope", { status: 500 }),
+        () => uploadImage(bytes, "image/jpeg", "selfie.jpg"),
+      ),
+    (err: unknown) => err instanceof YouCamError && err.code === "UploadFailed",
+  );
+});

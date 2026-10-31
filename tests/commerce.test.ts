@@ -8,7 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classify, SEASONS, type ColorProfile } from "../src/lib/season.ts";
+import { classify } from "../src/lib/season.ts";
 import {
   evaluateGarment,
   suggestPairings,
@@ -23,7 +23,6 @@ import {
   readableTextOn,
   ALL_SHADES,
   PRODUCT_LIBRARY,
-  MATCH_THRESHOLDS,
   type ProductCategory,
 } from "../src/lib/products.ts";
 import { deltaEHex, hexToLab, parseHex, contrastRatio } from "../src/lib/color.ts";

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ColorProfile } from "@/lib/season";
 import { matchShades, type ProductCategory, type ShadeMatch } from "@/lib/products";
-import { Panel, SectionHeading, Swatch, Badge, Callout } from "./ui";
+import { Panel, SectionHeading, Badge, Callout } from "./ui";
 
 const CATEGORIES: { id: ProductCategory; label: string; note: string }[] = [
   { id: "foundation", label: "Foundation", note: "Matched on your measured skin colour, weighting depth over hue." },

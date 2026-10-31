@@ -3,9 +3,8 @@
 import { useState } from "react";
 import type { Look } from "@/lib/looks";
 import type { ColorProfile } from "@/lib/season";
-import type { DataSource, PipelineSuccess } from "@/lib/pipeline";
 import { readApiResult, networkFailure } from "@/lib/api-response";
-import { Panel, SectionHeading, Swatch, Badge, Callout } from "./ui";
+import { Panel, SectionHeading, Swatch, Callout } from "./ui";
 
 interface RenderState {
   status: "idle" | "loading" | "done" | "error";
@@ -25,20 +24,24 @@ interface RenderState {
 export function LookGallery({
   looks,
   profile,
-  imageUrl,
-  measured,
-  quality,
-  source,
-  sourceRef,
+  ticket,
+  recordedSampleId,
   apiConfigured,
 }: {
   looks: Look[];
   profile: ColorProfile;
-  imageUrl?: string;
-  measured?: PipelineSuccess["measured"];
-  quality?: PipelineSuccess["quality"];
-  source?: DataSource;
-  sourceRef?: PipelineSuccess["sourceRef"];
+  /**
+   * Signed render ticket issued by the analyse route. It carries the measurement
+   * and the true photo reference, so the client never posts either and cannot
+   * forge provenance. Null when signing is not configured (recorded path only).
+   */
+  ticket: string | null;
+  /**
+   * Set only for the recorded demonstration. It lets the route render the
+   * recorded sample's OWN photo when no ticket was issued (ticket signing is
+   * optional). It can never select an arbitrary face.
+   */
+  recordedSampleId?: string;
   apiConfigured: boolean;
 }) {
   const [active, setActive] = useState(0);
@@ -51,7 +54,7 @@ export function LookGallery({
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lookId: id, imageUrl, measured, quality, source, sourceRef }),
+        body: JSON.stringify({ lookId: id, ticket: ticket ?? undefined, recordedSampleId }),
       });
       const data = await readApiResult<{ ok: true; imageUrl: string }>(res);
       if (data.ok) {

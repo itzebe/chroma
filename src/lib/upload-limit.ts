@@ -12,6 +12,13 @@ export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 export const MAX_UPLOAD_MB = 4;
 
+/**
+ * Largest request body the analyse route will buffer. The image cap plus
+ * generous multipart overhead (boundaries, headers, the recorded-sample field).
+ * Enforced before parsing so an oversized body is refused rather than buffered.
+ */
+export const MAX_BODY_BYTES = MAX_UPLOAD_BYTES + 512 * 1024;
+
 export function formatMegabytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
